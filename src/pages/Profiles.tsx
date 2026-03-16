@@ -210,12 +210,12 @@ export default function Profiles() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6 sticky top-0 bg-white z-10 pb-2 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-900">
                 {editingProfile ? 'Edit Profile' : 'New Profile'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 p-1 rounded-full">
                 <X size={24} />
               </button>
             </div>

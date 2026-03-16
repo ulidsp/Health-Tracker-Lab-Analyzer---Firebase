@@ -207,20 +207,20 @@ export default function Chat() {
 Profile Name: ${activeProfile.name}
 Profile Details: ${JSON.stringify(activeProfile, null, 2)}
 
-Recent Vitals:
-${JSON.stringify(vitals.slice(-5), null, 2)}
+All Vitals (Historical Data):
+${JSON.stringify(vitals, null, 2)}
 
-Recent Labs:
-${JSON.stringify(labs.slice(-10), null, 2)}
+All Labs (Historical Data):
+${JSON.stringify(labs, null, 2)}
 
-Current Medications:
+All Medications (Current and Past):
 ${JSON.stringify(meds, null, 2)}
 
 Family History:
 ${JSON.stringify(history, null, 2)}
 
-Recent Activities:
-${JSON.stringify(activities.slice(-5), null, 2)}
+All Activities (Historical Data):
+${JSON.stringify(activities, null, 2)}
         `;
       } catch (e) {
         console.error("Failed to fetch context", e);
@@ -246,10 +246,10 @@ ${JSON.stringify(activities.slice(-5), null, 2)}
         ${healthContext}
 
         คำแนะนำในการตอบ:
-        1. วิเคราะห์ผลตรวจเลือด (Lab Results) ล่าสุด อธิบายความหมายของค่าต่างๆ ว่าปกติหรือไม่ และมีแนวโน้มอย่างไร
-        2. ประเมินสุขภาพโดยรวมจากค่าความดันโลหิต น้ำตาลในเลือด (Vitals)
-        3. ให้คำแนะนำเรื่องการใช้ยา ผลข้างเคียง ข้อควรระวัง หรือปฏิกิริยาระหว่างยา (Drug Interactions) จากรายการยาที่ผู้ป่วยใช้อยู่
-        4. นำข้อมูลกิจกรรมและกิจวัตรประจำวัน (Activities) มาประเมินร่วมกับปัญหาสุขภาพ เพื่อให้คำแนะนำด้านการปรับเปลี่ยนพฤติกรรม (Lifestyle Modification) ที่เหมาะสม
+        1. วิเคราะห์ผลตรวจเลือด (Lab Results) ทั้งหมด อธิบายความหมายของค่าต่างๆ ว่าปกติหรือไม่ และเปรียบเทียบแนวโน้ม (Trends) จากอดีตจนถึงปัจจุบัน
+        2. ประเมินสุขภาพโดยรวมและพัฒนาการจากค่าความดันโลหิต น้ำตาลในเลือด (Vitals) ที่บันทึกไว้ทั้งหมด
+        3. ให้คำแนะนำเรื่องการใช้ยา ผลข้างเคียง ข้อควรระวัง หรือปฏิกิริยาระหว่างยา (Drug Interactions) จากประวัติการใช้ยาทั้งในอดีตและปัจจุบัน
+        4. นำข้อมูลกิจกรรมและกิจวัตรประจำวัน (Activities) ทั้งหมดมาประเมินร่วมกับปัญหาสุขภาพ เพื่อดูพฤติกรรมสะสมและให้คำแนะนำด้านการปรับเปลี่ยนพฤติกรรม (Lifestyle Modification) ที่เหมาะสม
         5. นำประวัติสุขภาพครอบครัว (Family Medical History) มาประเมินความเสี่ยงของโรคทางพันธุกรรม หรือโรคที่อาจเกิดขึ้นในอนาคต พร้อมแนะนำการตรวจคัดกรองที่เหมาะสม
         6. ตอบคำถามด้วยความเห็นอกเห็นใจ เป็นมืออาชีพ และใช้ภาษาที่เข้าใจง่าย (ภาษาไทย)
         7. **คำเตือนสำคัญ:** ต้องระบุเสมอว่าคุณเป็นเพียง AI ผู้ช่วยทางการแพทย์ และผู้ป่วยควรปรึกษาแพทย์เจ้าของไข้เพื่อการวินิจฉัยและการรักษาที่ถูกต้อง

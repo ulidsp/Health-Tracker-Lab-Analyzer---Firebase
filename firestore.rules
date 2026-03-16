@@ -37,19 +37,19 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && 
              request.auth.token.email_verified == true &&
-             request.auth.token.email in ["ulidsp@gmail.com"];
+             request.auth.token.email in ["ulidsp@gmail.com", "thunyaluks@gmail.com", "captainsmallvet@gmail.com"];
     }
 
     function isUser() {
       return isAuthenticated() && 
              request.auth.token.email_verified == true &&
-             (request.auth.token.email in ["ulidsp@gmail.com"] || isAdmin()); // Add other users here if needed
+             (request.auth.token.email in ["tingnuinui@gmail.com"] || isAdmin());
     }
 
     function isReader() {
       return isAuthenticated() && 
              request.auth.token.email_verified == true &&
-             (request.auth.token.email in ["ulidsp@gmail.com"] || isUser() || isAdmin());
+             (isUser() || isAdmin());
     }
 
     // Check if user is the owner of the profile
