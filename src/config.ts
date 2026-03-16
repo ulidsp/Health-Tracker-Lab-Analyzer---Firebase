@@ -1,14 +1,22 @@
 /**
- * Whitelist of email addresses allowed to access the application.
- * Add your email and any other authorized users here.
+ * Roles definition
  */
-export const ALLOWED_EMAILS = [
-  'ulidsp@gmail.com', // Your email (from runtime context)
-  // 'another-user@gmail.com',
-];
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+  READER = 'READER',
+}
+
+/**
+ * Whitelist of email addresses allowed to access the application with their roles.
+ */
+export const AUTHORIZED_USERS: Record<string, UserRole> = {
+  'ulidsp@gmail.com': UserRole.ADMIN, // Your email
+  // 'user@gmail.com': UserRole.USER,
+  // 'reader@gmail.com': UserRole.READER,
+};
 
 /**
  * Set to true to enable the whitelist check.
- * Set to false to allow any Google user to login.
  */
 export const ENABLE_WHITELIST = true;

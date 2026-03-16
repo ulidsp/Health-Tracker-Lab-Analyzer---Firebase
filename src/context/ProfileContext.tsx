@@ -3,6 +3,8 @@ import { collection, query, where, onSnapshot, doc, getDoc, or } from 'firebase/
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from './AuthContext';
 
+import { UserRole } from '../config';
+
 interface Profile {
   id: string;
   name: string;
@@ -19,6 +21,8 @@ interface ProfileContextType {
   setActiveProfile: (profile: Profile | null) => void;
   loading: boolean;
   canEdit: boolean;
+  isAdmin: boolean;
+  isReader: boolean;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -30,22 +34,26 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !user.isAuthorized) {
       setProfiles([]);
       setActiveProfile(null);
       setLoading(false);
       return;
     }
 
-    // Query profiles where user is owner, editor, or viewer
-    const q = query(
-      collection(db, 'Profiles'),
-      or(
-        where('ownerId', '==', user.uid),
-        where('editors', 'array-contains', user.uid),
-        where('viewers', 'array-contains', user.uid)
-      )
-    );
+    // Query profiles
+    // ADMIN sees everything
+    // Others see only what they own or are shared with
+    const q = user.role === UserRole.ADMIN
+      ? query(collection(db, 'Profiles'))
+      : query(
+          collection(db, 'Profiles'),
+          or(
+            where('ownerId', '==', user.uid),
+            where('editors', 'array-contains', user.uid),
+            where('viewers', 'array-contains', user.uid)
+          )
+        );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const profileList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile));
@@ -79,12 +87,15 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [activeProfile]);
 
+  const isAdmin = user?.role === UserRole.ADMIN;
+  const isReader = user?.role === UserRole.READER;
+
   const canEdit = activeProfile 
-    ? activeProfile.ownerId === user?.uid || (activeProfile.editors && activeProfile.editors.includes(user?.uid || ''))
+    ? (isAdmin || (!isReader && (activeProfile.ownerId === user?.uid || (activeProfile.editors && activeProfile.editors.includes(user?.uid || '')))))
     : false;
 
   return (
-    <ProfileContext.Provider value={{ activeProfile, profiles, setActiveProfile, loading, canEdit }}>
+    <ProfileContext.Provider value={{ activeProfile, profiles, setActiveProfile, loading, canEdit, isAdmin, isReader }}>
       {children}
     </ProfileContext.Provider>
   );

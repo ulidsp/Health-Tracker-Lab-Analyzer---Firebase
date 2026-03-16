@@ -28,25 +28,58 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Get user data
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Role checks
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.email_verified == true &&
+             request.auth.token.email in ["ulidsp@gmail.com"];
+    }
+
+    function isUser() {
+      return isAuthenticated() && 
+             request.auth.token.email_verified == true &&
+             (request.auth.token.email in ["ulidsp@gmail.com"] || isAdmin()); // Add other users here if needed
+    }
+
+    function isReader() {
+      return isAuthenticated() && 
+             request.auth.token.email_verified == true &&
+             (request.auth.token.email in ["ulidsp@gmail.com"] || isUser() || isAdmin());
+    }
+
     // Check if user is the owner of the profile
     function isProfileOwner(profileId) {
-      return isAuthenticated() && get(/databases/$(database)/documents/Profiles/$(profileId)).data.ownerId == request.auth.uid;
+      return isAuthenticated() && (
+        isAdmin() || 
+        get(/databases/$(database)/documents/Profiles/$(profileId)).data.ownerId == request.auth.uid
+      );
     }
 
     // Check if user is an editor of the profile
     function isProfileEditor(profileId) {
       return isAuthenticated() && (
-        get(/databases/$(database)/documents/Profiles/$(profileId)).data.ownerId == request.auth.uid ||
-        request.auth.uid in get(/databases/$(database)/documents/Profiles/$(profileId)).data.editors
+        isAdmin() ||
+        (isUser() && (
+          get(/databases/$(database)/documents/Profiles/$(profileId)).data.ownerId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/Profiles/$(profileId)).data.editors
+        ))
       );
     }
 
     // Check if user is a viewer of the profile
     function isProfileViewer(profileId) {
       return isAuthenticated() && (
-        get(/databases/$(database)/documents/Profiles/$(profileId)).data.ownerId == request.auth.uid ||
-        request.auth.uid in get(/databases/$(database)/documents/Profiles/$(profileId)).data.editors ||
-        request.auth.uid in get(/databases/$(database)/documents/Profiles/$(profileId)).data.viewers
+        isAdmin() ||
+        (isReader() && (
+          get(/databases/$(database)/documents/Profiles/$(profileId)).data.ownerId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/Profiles/$(profileId)).data.editors ||
+          request.auth.uid in get(/databases/$(database)/documents/Profiles/$(profileId)).data.viewers
+        ))
       );
     }
 
@@ -68,24 +101,29 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    // Users Collection (for roles)
+    match /users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAdmin();
+    }
+
     // Profiles Collection
     match /Profiles/{profileId} {
-      allow read: if isAuthenticated() && (
+      allow read: if isReader() && (
+        isAdmin() ||
         resource.data.ownerId == request.auth.uid ||
         request.auth.uid in resource.data.editors ||
         request.auth.uid in resource.data.viewers
       );
       
-      allow create: if isAuthenticated() && 
-                    isValidProfile(request.resource.data) && 
-                    request.resource.data.ownerId == request.auth.uid;
+      allow create: if isAdmin() && isValidProfile(request.resource.data);
       
       allow update: if isAuthenticated() && 
                     isValidProfile(request.resource.data) && 
-                    resource.data.ownerId == request.auth.uid &&
-                    request.resource.data.ownerId == resource.data.ownerId; // ownerId is immutable
+                    (isAdmin() || (isUser() && resource.data.ownerId == request.auth.uid)) &&
+                    request.resource.data.ownerId == resource.data.ownerId;
       
-      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow delete: if isAdmin();
     }
 
     // Health Data Collections

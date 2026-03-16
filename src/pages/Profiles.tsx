@@ -7,7 +7,7 @@ import { Plus, Edit2, Trash2, Users, Check, X } from 'lucide-react';
 
 export default function Profiles() {
   const { user } = useAuth();
-  const { profiles, activeProfile, setActiveProfile } = useProfile();
+  const { profiles, activeProfile, setActiveProfile, isAdmin, isReader } = useProfile();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -17,6 +17,10 @@ export default function Profiles() {
     editors: '',
     viewers: ''
   });
+
+  const canAddProfile = isAdmin;
+  const canDeleteProfile = (profile: any) => isAdmin; // User cannot delete profiles according to request
+  const canEditProfile = (profile: any) => isAdmin || (!isReader && profile.ownerId === user?.uid);
 
   const handleOpenModal = (profile: any = null) => {
     if (profile) {
@@ -96,13 +100,15 @@ export default function Profiles() {
           <h1 className="text-2xl font-bold text-gray-900">Manage Profiles</h1>
           <p className="text-gray-500 italic">Create and manage health profiles for family members</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-        >
-          <Plus size={20} />
-          Add Profile
-        </button>
+        {canAddProfile && (
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            <Plus size={20} />
+            Add Profile
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -128,13 +134,15 @@ export default function Profiles() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleOpenModal(profile)}
-                  className="p-2 text-gray-400 hover:text-emerald-600 transition-colors"
-                >
-                  <Edit2 size={18} />
-                </button>
-                {profile.ownerId === user?.uid && (
+                {canEditProfile(profile) && (
+                  <button
+                    onClick={() => handleOpenModal(profile)}
+                    className="p-2 text-gray-400 hover:text-emerald-600 transition-colors"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                )}
+                {canDeleteProfile(profile) && (
                   <button
                     onClick={() => handleDelete(profile.id)}
                     className="p-2 text-gray-400 hover:text-red-600 transition-colors"

@@ -2,7 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { auth, googleProvider } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User as FirebaseUser } from 'firebase/auth';
 
-import { ALLOWED_EMAILS, ENABLE_WHITELIST } from '../config';
+import { AUTHORIZED_USERS, ENABLE_WHITELIST, UserRole } from '../config';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 interface User {
   uid: string;
@@ -10,6 +11,7 @@ interface User {
   name: string | null;
   picture: string | null;
   isAuthorized: boolean;
+  role: UserRole | null;
 }
 
 interface AuthContextType {
@@ -28,21 +30,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       setError(null);
       if (firebaseUser) {
-        const isAuthorized = !ENABLE_WHITELIST || (firebaseUser.email ? ALLOWED_EMAILS.includes(firebaseUser.email) : false);
+        const userRole = firebaseUser.email ? AUTHORIZED_USERS[firebaseUser.email] : null;
+        const isAuthorized = !ENABLE_WHITELIST || !!userRole;
         
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           name: firebaseUser.displayName,
           picture: firebaseUser.photoURL,
-          isAuthorized: isAuthorized
+          isAuthorized: isAuthorized,
+          role: userRole || null
         });
 
         if (!isAuthorized) {
           setError('Access Denied: Your email is not on the authorized list.');
+        } else if (userRole) {
+          // Sync role to Firestore if authorized
+          try {
+            const { db } = await import('../firebase');
+            const userDocRef = doc(db, 'users', firebaseUser.uid);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (!userDoc.exists() || userDoc.data()?.role !== userRole) {
+              await setDoc(userDocRef, {
+                email: firebaseUser.email,
+                role: userRole,
+                updatedAt: serverTimestamp()
+              }, { merge: true });
+            }
+          } catch (error) {
+            // This might fail if the user is not an admin, which is expected for non-admins
+            // unless we allow users to write their own role if it matches the whitelist.
+            console.error('Role sync failed (likely permission denied):', error);
+          }
         }
       } else {
         setUser(null);
@@ -59,10 +82,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
       
-      if (ENABLE_WHITELIST && firebaseUser.email && !ALLOWED_EMAILS.includes(firebaseUser.email)) {
+      if (ENABLE_WHITELIST && firebaseUser.email && !AUTHORIZED_USERS[firebaseUser.email]) {
         setError('Access Denied: Your email is not on the authorized list.');
-        // We don't sign out immediately so the user can see the error, 
-        // but the app logic will block them because isAuthorized will be false.
       }
     } catch (error) {
       console.error('OAuth error:', error);
