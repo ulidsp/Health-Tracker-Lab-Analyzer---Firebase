@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
 
 export default function Vitals() {
   const { user } = useAuth();
@@ -18,7 +19,7 @@ export default function Vitals() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const defaultFormData = {
-    Date: new Date().toISOString().split('T')[0],
+    Date: getThaiDateString(),
     Weight: '',
     Height: '',
     Systolic: '',
@@ -479,7 +480,7 @@ export default function Vitals() {
                     "hover:bg-slate-50/50 transition-colors",
                     editingRecord?.id === v.id && "bg-amber-50/30"
                   )}>
-                    <td className="px-6 py-4 font-medium text-slate-900">{v.Date}</td>
+                    <td className="px-6 py-4 font-medium text-slate-900">{formatThaiDate(v.Date)}</td>
                     <td className="px-6 py-4">{v.Weight ? `${v.Weight} kg` : '-'}</td>
                     <td className="px-6 py-4">{v.Height ? `${v.Height} cm` : '-'}</td>
                     <td className="px-6 py-4">

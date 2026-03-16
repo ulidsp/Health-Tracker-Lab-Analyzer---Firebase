@@ -5,6 +5,7 @@ import Highlight from '../components/Highlight';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
+import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
 import { db } from '../firebase';
 import { Link } from 'react-router-dom';
 
@@ -16,7 +17,7 @@ export default function Activities() {
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
-  const [uploadStartDate, setUploadStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [uploadStartDate, setUploadStartDate] = useState(getThaiDateString());
   const [uploadEndDate, setUploadEndDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -32,7 +33,7 @@ export default function Activities() {
     Frequency: '',
     Details: '',
     Purpose: '',
-    StartDate: new Date().toISOString().split('T')[0],
+    StartDate: getThaiDateString(),
     EndDate: '',
     Notes: ''
   };
@@ -242,7 +243,7 @@ export default function Activities() {
   const getDuration = (start: string, end: string) => {
     if (!start) return '-';
     const startDate = new Date(start);
-    const endDate = end ? new Date(end) : new Date();
+    const endDate = end ? new Date(end) : new Date(getThaiDateString());
     
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '-';
     
@@ -315,8 +316,8 @@ export default function Activities() {
     return result;
   }, [activities, searchQuery, filterStartDate, filterEndDate, sortOption]);
 
-  const activeActivities = filteredActivities.filter(activity => !activity.EndDate || new Date(activity.EndDate) >= new Date(new Date().setHours(0,0,0,0)));
-  const pastActivities = filteredActivities.filter(activity => activity.EndDate && new Date(activity.EndDate) < new Date(new Date().setHours(0,0,0,0)));
+  const activeActivities = filteredActivities.filter(activity => !activity.EndDate || new Date(activity.EndDate) >= new Date(getThaiDateString()));
+  const pastActivities = filteredActivities.filter(activity => activity.EndDate && new Date(activity.EndDate) < new Date(getThaiDateString()));
 
   if (!activeProfile) {
     return (
@@ -816,7 +817,7 @@ export default function Activities() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 text-slate-700">
                         <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="whitespace-nowrap">เริ่ม: {a.StartDate || '-'}</span>
+                        <span className="whitespace-nowrap">เริ่ม: {formatThaiDate(a.StartDate) || '-'}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-emerald-600 mt-1 font-medium text-xs">
                         <Clock className="w-3.5 h-3.5 shrink-0" />
@@ -892,7 +893,7 @@ export default function Activities() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 text-slate-500">
                         <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="whitespace-nowrap">{a.StartDate || '-'} ถึง {a.EndDate || '-'}</span>
+                        <span className="whitespace-nowrap">{formatThaiDate(a.StartDate) || '-'} ถึง {formatThaiDate(a.EndDate) || '-'}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-slate-500 mt-1 font-medium text-xs">
                         <Clock className="w-3.5 h-3.5 shrink-0" />

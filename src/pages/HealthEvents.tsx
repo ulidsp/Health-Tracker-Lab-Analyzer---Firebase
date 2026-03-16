@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
 
 export default function HealthEvents() {
   const { user } = useAuth();
@@ -24,7 +25,7 @@ export default function HealthEvents() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const defaultEvent = {
-    Date: new Date().toISOString().split('T')[0],
+    Date: getThaiDateString(),
     Type: 'Illness',
     Description: '',
     Notes: ''
@@ -557,9 +558,7 @@ export default function HealthEvents() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 w-fit">
-                            {new Date(event.Date).toLocaleDateString('en-GB', { 
-                              day: 'numeric', month: 'short', year: 'numeric' 
-                            })}
+                            {formatThaiDate(event.Date)}
                           </span>
                           <button 
                             onClick={() => startEdit(event)}

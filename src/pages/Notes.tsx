@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
 
 export default function Notes() {
   const { user } = useAuth();
@@ -24,7 +25,7 @@ export default function Notes() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const defaultNote = {
-    date: new Date().toISOString().split('T')[0],
+    date: getThaiDateString(),
     title: '',
     content: ''
   };
@@ -351,7 +352,7 @@ export default function Notes() {
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2 text-sm text-slate-500 font-medium bg-slate-50 px-2.5 py-1 rounded-lg">
                   <Calendar className="w-4 h-4" />
-                  {note.date}
+                  {formatThaiDate(note.date)}
                 </div>
                 {canEdit && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -1,8 +1,10 @@
+import { getThaiDateString } from './dateUtils';
+
 export function calculateAge(birthDateString: string): string {
   if (!birthDateString) return '';
   
   const birthDate = new Date(birthDateString);
-  const today = new Date();
+  const today = new Date(getThaiDateString());
   
   if (isNaN(birthDate.getTime())) return '';
 

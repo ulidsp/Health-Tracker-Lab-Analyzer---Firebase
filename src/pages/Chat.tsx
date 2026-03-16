@@ -8,6 +8,7 @@ import { GoogleGenAI } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
 import { collection, getDocs, addDoc, query, orderBy, where } from 'firebase/firestore';
+import { getThaiDateString, formatThaiDateTime, getThaiTimestamp } from '../utils/dateUtils';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 
 interface Message {
@@ -73,8 +74,14 @@ export default function Chat() {
       if (!hasInitializedDates) {
         const defaultStart = new Date();
         defaultStart.setDate(defaultStart.getDate() - 30);
-        setStartDate(defaultStart.toISOString().split('T')[0]);
-        setEndDate(new Date().toISOString().split('T')[0]);
+        const options: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' };
+        const formatter = new Intl.DateTimeFormat('en-GB', options);
+        const parts = formatter.formatToParts(defaultStart);
+        const year = parts.find(p => p.type === 'year')?.value;
+        const month = parts.find(p => p.type === 'month')?.value;
+        const day = parts.find(p => p.type === 'day')?.value;
+        setStartDate(`${year}-${month}-${day}`);
+        setEndDate(getThaiDateString());
         setHasInitializedDates(true);
       }
 
@@ -145,7 +152,7 @@ export default function Chat() {
     setError('');
     
     // Add user message to UI
-    const now = new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
+    const now = getThaiTimestamp();
     const newMessages: Message[] = [...messages, { role: 'user', text: userMessage, timestamp: now }];
     setShouldScroll(true);
     setMessages(newMessages);
@@ -226,15 +233,7 @@ ${JSON.stringify(activities, null, 2)}
         console.error("Failed to fetch context", e);
       }
 
-      const nowThai = new Date().toLocaleString('th-TH', { 
-        timeZone: 'Asia/Bangkok',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
+      const nowThai = formatThaiDateTime(new Date());
 
       const systemInstruction = `
         คุณคือแพทย์ผู้เชี่ยวชาญ (Expert Medical Doctor) และเภสัชกรคลินิก (Clinical Pharmacist)
@@ -478,13 +477,7 @@ ${JSON.stringify(activities, null, 2)}
                       "text-[10px] mt-2 opacity-70",
                       msg.role === 'user' ? "text-indigo-100 text-right" : "text-slate-400"
                     )}>
-                      {new Date(msg.timestamp).toLocaleString('th-TH', { 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
+                      {formatThaiDateTime(msg.timestamp)}
                     </div>
                   )}
                 </div>

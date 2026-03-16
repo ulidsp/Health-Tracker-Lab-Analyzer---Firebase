@@ -9,6 +9,8 @@ import HealthAnalysis from '../components/HealthAnalysis';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
+import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { activeProfile } = useProfile();
@@ -74,7 +76,7 @@ export default function Dashboard() {
     if (!activeProfile?.birthDate) return null;
     const birthDate = new Date(activeProfile.birthDate);
     if (isNaN(birthDate.getTime())) return null;
-    const today = new Date();
+    const today = new Date(getThaiDateString());
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
@@ -332,7 +334,7 @@ export default function Dashboard() {
                 <p className="text-sm font-medium text-slate-500">Latest BP</p>
                 {latestBp?.date && (
                   <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                    {latestBp.date}
+                    {formatThaiDate(latestBp.date)}
                   </span>
                 )}
               </div>
@@ -353,7 +355,7 @@ export default function Dashboard() {
                 <p className="text-sm font-medium text-slate-500">Latest FBS</p>
                 {latestFbs?.date && (
                   <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                    {latestFbs.date}
+                    {formatThaiDate(latestFbs.date)}
                   </span>
                 )}
               </div>

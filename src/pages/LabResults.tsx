@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
+import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
 
 export default function LabResults() {
   const { user } = useAuth();
@@ -15,7 +16,7 @@ export default function LabResults() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getThaiDateString());
   const [selectedNotes, setSelectedNotes] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [saving, setSaving] = useState(false);
@@ -27,7 +28,7 @@ export default function LabResults() {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const defaultLab = {
-    Date: new Date().toISOString().split('T')[0],
+    Date: getThaiDateString(),
     TestName: '',
     Value: '',
     Unit: '',
@@ -686,7 +687,7 @@ export default function LabResults() {
                     "hover:bg-slate-50/50 transition-colors",
                     editingLab?.id === l.id && "bg-amber-50/30"
                   )}>
-                    <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{l.Date}</td>
+                    <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{formatThaiDate(l.Date)}</td>
                     <td className="px-6 py-4 font-medium text-slate-700">
                       <Highlight text={l.TestName} query={searchQuery} />
                     </td>

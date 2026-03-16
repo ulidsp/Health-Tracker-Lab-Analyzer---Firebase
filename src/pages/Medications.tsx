@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
+import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
 
 export default function Medications() {
   const { user } = useAuth();
@@ -16,7 +17,7 @@ export default function Medications() {
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
-  const [uploadStartDate, setUploadStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [uploadStartDate, setUploadStartDate] = useState(getThaiDateString());
   const [uploadEndDate, setUploadEndDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +32,7 @@ export default function Medications() {
     Dosage: '',
     Frequency: '',
     Purpose: '',
-    StartDate: new Date().toISOString().split('T')[0],
+    StartDate: getThaiDateString(),
     EndDate: '',
     Notes: ''
   };
@@ -235,7 +236,7 @@ export default function Medications() {
   const getDuration = (start: string, end: string) => {
     if (!start) return '-';
     const startDate = new Date(start);
-    const endDate = end ? new Date(end) : new Date();
+    const endDate = end ? new Date(end) : new Date(getThaiDateString());
     
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '-';
     
@@ -308,8 +309,8 @@ export default function Medications() {
     return result;
   }, [meds, searchQuery, filterStartDate, filterEndDate, sortOption]);
 
-  const activeMeds = filteredMeds.filter(med => !med.EndDate || new Date(med.EndDate) >= new Date(new Date().setHours(0,0,0,0)));
-  const pastMeds = filteredMeds.filter(med => med.EndDate && new Date(med.EndDate) < new Date(new Date().setHours(0,0,0,0)));
+  const activeMeds = filteredMeds.filter(med => !med.EndDate || new Date(med.EndDate) >= new Date(getThaiDateString()));
+  const pastMeds = filteredMeds.filter(med => med.EndDate && new Date(med.EndDate) < new Date(getThaiDateString()));
 
   if (!activeProfile) {
     return (
@@ -787,7 +788,7 @@ export default function Medications() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 text-slate-700">
                         <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="whitespace-nowrap">เริ่ม: {m.StartDate || '-'}</span>
+                        <span className="whitespace-nowrap">เริ่ม: {formatThaiDate(m.StartDate) || '-'}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-emerald-600 mt-1 font-medium text-xs">
                         <Clock className="w-3.5 h-3.5 shrink-0" />
@@ -859,7 +860,7 @@ export default function Medications() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-slate-600 text-xs whitespace-nowrap">
-                        {m.StartDate || '?'} ถึง {m.EndDate}
+                        {formatThaiDate(m.StartDate) || '?'} ถึง {formatThaiDate(m.EndDate)}
                       </div>
                       <div className="text-slate-500 mt-1 font-medium text-xs whitespace-nowrap">
                         รวม: {getDuration(m.StartDate, m.EndDate)}

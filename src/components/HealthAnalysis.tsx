@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Info, Droplets, Heart, Scale, FileText } from 'lucide-react';
 import clsx from 'clsx';
 
+import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
+
 interface HealthAnalysisProps {
   vitals: any[];
   labs: any[];
@@ -17,7 +19,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       if (!profile?.BirthDate) return null;
       const birthDate = new Date(profile.BirthDate);
       if (isNaN(birthDate.getTime())) return null;
-      const today = new Date();
+      const today = new Date(getThaiDateString());
       let age = today.getFullYear() - birthDate.getFullYear();
       const m = today.getMonth() - birthDate.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
@@ -1122,7 +1124,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
                   </div>
                   <div>
                     <h3 className="font-semibold text-slate-900">{item.category}</h3>
-                    {item.date && <p className="text-xs font-medium opacity-70 mt-0.5">ข้อมูลเมื่อ: {item.date}</p>}
+                    {item.date && <p className="text-xs font-medium opacity-70 mt-0.5">ข้อมูลเมื่อ: {formatThaiDate(item.date)}</p>}
                   </div>
                 </div>
                 <div className="text-right">
