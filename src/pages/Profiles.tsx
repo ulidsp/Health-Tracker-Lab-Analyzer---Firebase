@@ -14,13 +14,16 @@ export default function Profiles() {
     name: '',
     gender: 'Male',
     birthDate: '',
+    bloodType: '',
+    medicalConditions: '',
+    allergies: '',
     editors: '',
     viewers: ''
   });
 
   const canAddProfile = isAdmin;
   const canDeleteProfile = (profile: any) => isAdmin; // User cannot delete profiles according to request
-  const canEditProfile = (profile: any) => isAdmin || (!isReader && profile.ownerId === user?.uid);
+  const canEditProfile = (profile: any) => isAdmin || (!isReader && (profile.ownerId === user?.uid || profile.editors?.includes(user?.uid)));
 
   const handleOpenModal = (profile: any = null) => {
     if (profile) {
@@ -29,6 +32,9 @@ export default function Profiles() {
         name: profile.name,
         gender: profile.gender || 'Male',
         birthDate: profile.birthDate || '',
+        bloodType: profile.bloodType || '',
+        medicalConditions: profile.medicalConditions || '',
+        allergies: profile.allergies || '',
         editors: (profile.editors || []).join(', '),
         viewers: (profile.viewers || []).join(', ')
       });
@@ -38,6 +44,9 @@ export default function Profiles() {
         name: '',
         gender: 'Male',
         birthDate: '',
+        bloodType: '',
+        medicalConditions: '',
+        allergies: '',
         editors: '',
         viewers: ''
       });
@@ -58,6 +67,9 @@ export default function Profiles() {
       name: formData.name,
       gender: formData.gender,
       birthDate: formData.birthDate,
+      bloodType: formData.bloodType,
+      medicalConditions: formData.medicalConditions,
+      allergies: formData.allergies,
       editors: formData.editors.split(',').map(s => s.trim()).filter(s => s),
       viewers: formData.viewers.split(',').map(s => s.trim()).filter(s => s),
       updatedAt: serverTimestamp()
@@ -154,6 +166,24 @@ export default function Profiles() {
             </div>
 
             <div className="space-y-3 mb-6">
+              {profile.bloodType && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">กรุ๊ปเลือด</span>
+                  <span className="font-medium text-rose-600">{profile.bloodType}</span>
+                </div>
+              )}
+              {profile.allergies && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">แพ้ยา/อาหาร</span>
+                  <span className="font-medium text-amber-600 text-right max-w-[150px] truncate" title={profile.allergies}>{profile.allergies}</span>
+                </div>
+              )}
+              {profile.medicalConditions && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">โรคประจำตัว</span>
+                  <span className="font-medium text-blue-600 text-right max-w-[150px] truncate" title={profile.medicalConditions}>{profile.medicalConditions}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Editors</span>
                 <span className="font-medium">{profile.editors?.length || 0} users</span>
@@ -235,12 +265,58 @@ export default function Profiles() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                  Blood Type (กรุ๊ปเลือด)
+                </label>
+                <select
+                  value={formData.bloodType}
+                  onChange={(e) => setFormData({ ...formData, bloodType: e.target.value })}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                >
+                  <option value="">ไม่ระบุ (Unknown)</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                  Medical Conditions (โรคประจำตัว)
+                </label>
+                <textarea
+                  value={formData.medicalConditions}
+                  onChange={(e) => setFormData({ ...formData, medicalConditions: e.target.value })}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none h-16 text-sm resize-none"
+                  placeholder="เช่น เบาหวาน, ความดันโลหิตสูง (ถ้าไม่มีให้เว้นว่าง)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                  Allergies (ประวัติการแพ้ยา/อาหาร)
+                </label>
+                <textarea
+                  value={formData.allergies}
+                  onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none h-16 text-sm resize-none"
+                  placeholder="เช่น แพ้เพนิซิลลิน, แพ้อาหารทะเล (ถ้าไม่มีให้เว้นว่าง)"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Sharing Settings</h3>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                   Editors (User IDs, comma separated)
                 </label>
                 <textarea
                   value={formData.editors}
                   onChange={(e) => setFormData({ ...formData, editors: e.target.value })}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none h-20 text-sm"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none h-16 text-sm"
                   placeholder="Leave blank if using alone. Paste other users' UIDs to let them edit this profile."
                 />
               </div>

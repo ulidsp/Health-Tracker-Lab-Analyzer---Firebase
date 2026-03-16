@@ -120,7 +120,7 @@ service cloud.firestore {
       
       allow update: if isAuthenticated() && 
                     isValidProfile(request.resource.data) && 
-                    (isAdmin() || (isUser() && resource.data.ownerId == request.auth.uid)) &&
+                    (isAdmin() || (isUser() && (resource.data.ownerId == request.auth.uid || request.auth.uid in resource.data.editors))) &&
                     request.resource.data.ownerId == resource.data.ownerId;
       
       allow delete: if isAdmin();

@@ -6,6 +6,11 @@
       "type": "object",
       "properties": {
         "name": { "type": "string", "description": "Name of the person (e.g., Mom, Dad, Me)" },
+        "gender": { "type": "string", "description": "Gender of the person" },
+        "birthDate": { "type": "string", "description": "Birth date of the person" },
+        "bloodType": { "type": "string", "description": "Blood type" },
+        "medicalConditions": { "type": "string", "description": "Underlying medical conditions" },
+        "allergies": { "type": "string", "description": "Drug or food allergies" },
         "ownerId": { "type": "string", "description": "UID of the user who created the profile" },
         "editors": { "type": "array", "items": { "type": "string" }, "description": "List of UIDs who can edit this profile" },
         "viewers": { "type": "array", "items": { "type": "string" }, "description": "List of UIDs who can view this profile" },

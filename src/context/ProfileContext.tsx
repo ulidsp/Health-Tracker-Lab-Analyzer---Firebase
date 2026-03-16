@@ -13,6 +13,9 @@ interface Profile {
   viewers: string[];
   gender?: string;
   birthDate?: string;
+  bloodType?: string;
+  medicalConditions?: string;
+  allergies?: string;
 }
 
 interface ProfileContextType {
@@ -41,44 +44,90 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Query profiles
-    // ADMIN sees everything
-    // Others see only what they own or are shared with
-    const q = user.role === UserRole.ADMIN
-      ? query(collection(db, 'Profiles'))
-      : query(
-          collection(db, 'Profiles'),
-          or(
-            where('ownerId', '==', user.uid),
-            where('editors', 'array-contains', user.uid),
-            where('viewers', 'array-contains', user.uid)
-          )
-        );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const profileList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile));
-      
-      setProfiles(profileList);
-      
-      // Try to restore active profile from localStorage
-      const savedProfileId = localStorage.getItem('activeProfileId');
-      if (savedProfileId) {
-        const saved = profileList.find(p => p.id === savedProfileId);
-        if (saved) {
-          setActiveProfile(saved);
-        } else if (profileList.length > 0) {
+    if (user.role === UserRole.ADMIN) {
+      const q = query(collection(db, 'Profiles'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const profileList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile));
+        
+        setProfiles(profileList);
+        
+        // Try to restore active profile from localStorage
+        const savedProfileId = localStorage.getItem('activeProfileId');
+        if (savedProfileId) {
+          const saved = profileList.find(p => p.id === savedProfileId);
+          if (saved) {
+            setActiveProfile(saved);
+          } else if (profileList.length > 0) {
+            setActiveProfile(profileList[0]);
+          }
+        } else if (profileList.length > 0 && !activeProfile) {
           setActiveProfile(profileList[0]);
         }
-      } else if (profileList.length > 0 && !activeProfile) {
-        setActiveProfile(profileList[0]);
-      }
-      
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'Profiles');
-    });
+        
+        setLoading(false);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'Profiles');
+      });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } else {
+      const qOwner = query(collection(db, 'Profiles'), where('ownerId', '==', user.uid));
+      const qEditor = query(collection(db, 'Profiles'), where('editors', 'array-contains', user.uid));
+      const qViewer = query(collection(db, 'Profiles'), where('viewers', 'array-contains', user.uid));
+
+      let ownerProfiles: Profile[] = [];
+      let editorProfiles: Profile[] = [];
+      let viewerProfiles: Profile[] = [];
+
+      const updateProfiles = () => {
+        const allProfiles = [...ownerProfiles, ...editorProfiles, ...viewerProfiles];
+        const uniqueProfiles = Array.from(new Map(allProfiles.map(p => [p.id, p])).values());
+        
+        setProfiles(uniqueProfiles);
+        
+        // Try to restore active profile from localStorage
+        const savedProfileId = localStorage.getItem('activeProfileId');
+        if (savedProfileId) {
+          const saved = uniqueProfiles.find(p => p.id === savedProfileId);
+          if (saved) {
+            setActiveProfile(saved);
+          } else if (uniqueProfiles.length > 0) {
+            setActiveProfile(uniqueProfiles[0]);
+          }
+        } else if (uniqueProfiles.length > 0 && !activeProfile) {
+          setActiveProfile(uniqueProfiles[0]);
+        }
+        
+        setLoading(false);
+      };
+
+      const unsubOwner = onSnapshot(qOwner, (snapshot) => {
+        ownerProfiles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile));
+        updateProfiles();
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'Profiles');
+      });
+
+      const unsubEditor = onSnapshot(qEditor, (snapshot) => {
+        editorProfiles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile));
+        updateProfiles();
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'Profiles');
+      });
+
+      const unsubViewer = onSnapshot(qViewer, (snapshot) => {
+        viewerProfiles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile));
+        updateProfiles();
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'Profiles');
+      });
+
+      return () => {
+        unsubOwner();
+        unsubEditor();
+        unsubViewer();
+      };
+    }
   }, [user]);
 
   useEffect(() => {

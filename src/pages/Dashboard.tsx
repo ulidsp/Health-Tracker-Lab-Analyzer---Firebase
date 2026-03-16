@@ -263,35 +263,60 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="font-semibold text-slate-900 text-sm">{activeProfile.name}</p>
-              {activeProfile.birthDate ? (
-                <p className="text-xs text-indigo-600 font-medium">อายุ: {calculateAge(activeProfile.birthDate)}</p>
-              ) : (
-                <p className="text-xs text-slate-500">Health Profile</p>
-              )}
+              <div className="flex gap-2 items-center">
+                {activeProfile.birthDate ? (
+                  <p className="text-xs text-indigo-600 font-medium">อายุ: {calculateAge(activeProfile.birthDate)}</p>
+                ) : (
+                  <p className="text-xs text-slate-500">Health Profile</p>
+                )}
+                {activeProfile.bloodType && (
+                  <>
+                    <span className="text-slate-300 text-xs">|</span>
+                    <p className="text-xs text-rose-600 font-medium">กรุ๊ปเลือด: {activeProfile.bloodType}</p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100 w-fit">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">ตั้งแต่:</span>
-            <input 
-              type="date" 
-              value={startDate} 
-              onChange={(e) => setStartDate(e.target.value)}
-              className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
-            />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100 w-fit">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">ตั้งแต่:</span>
+              <input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+                className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
+              />
+            </div>
+            <span className="text-slate-300">|</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">ถึง:</span>
+              <input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)}
+                className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
+              />
+            </div>
           </div>
-          <span className="text-slate-300">|</span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">ถึง:</span>
-            <input 
-              type="date" 
-              value={endDate} 
-              onChange={(e) => setEndDate(e.target.value)}
-              className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
-            />
-          </div>
+
+          {(activeProfile.medicalConditions || activeProfile.allergies) && (
+            <div className="flex flex-col sm:flex-row gap-3 text-sm">
+              {activeProfile.medicalConditions && (
+                <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-100">
+                  <span className="font-semibold">โรคประจำตัว:</span> {activeProfile.medicalConditions}
+                </div>
+              )}
+              {activeProfile.allergies && (
+                <div className="bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-100">
+                  <span className="font-semibold">แพ้ยา/อาหาร:</span> {activeProfile.allergies}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
