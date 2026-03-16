@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProfileProvider } from './context/ProfileContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Vitals from './pages/Vitals';
@@ -11,6 +12,7 @@ import FamilyHistory from './pages/FamilyHistory';
 import Activities from './pages/Activities';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
+import Profiles from './pages/Profiles';
 import Layout from './components/Layout';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -23,22 +25,24 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route index element={<Dashboard />} />
-            <Route path="vitals" element={<Vitals />} />
-            <Route path="lab-results" element={<LabResults />} />
-            <Route path="medications" element={<Medications />} />
-            <Route path="activities" element={<Activities />} />
-            <Route path="family-history" element={<FamilyHistory />} />
-            <Route path="events" element={<HealthEvents />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="profile" element={<Profile />} />
-          </Route>
-        </Routes>
-      </Router>
+      <ProfileProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route index element={<Dashboard />} />
+              <Route path="vitals" element={<Vitals />} />
+              <Route path="lab-results" element={<LabResults />} />
+              <Route path="medications" element={<Medications />} />
+              <Route path="activities" element={<Activities />} />
+              <Route path="family-history" element={<FamilyHistory />} />
+              <Route path="events" element={<HealthEvents />} />
+              <Route path="chat" element={<Chat />} />
+              <Route path="profiles" element={<Profiles />} />
+            </Route>
+          </Routes>
+        </Router>
+      </ProfileProvider>
     </AuthProvider>
   );
 }

@@ -3,11 +3,14 @@ import { Upload, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Trash2
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 import { useAuth } from '../context/AuthContext';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { useProfile } from '../context/ProfileContext';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import { Link } from 'react-router-dom';
 
 export default function FamilyHistory() {
   const { user } = useAuth();
+  const { activeProfile, canEdit } = useProfile();
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -35,22 +38,23 @@ export default function FamilyHistory() {
   const [sortOption, setSortOption] = useState('default');
 
   useEffect(() => {
-    if (user) {
+    if (user && activeProfile) {
       fetchHistory();
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, activeProfile]);
 
   const fetchHistory = async () => {
-    if (!user) return;
+    if (!user || !activeProfile) return;
+    setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'FamilyHistory'));
+      const q = query(collection(db, 'FamilyHistory'), where('profileId', '==', activeProfile.id));
+      const querySnapshot = await getDocs(q);
       const data = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      // Sort by creation time if we had a timestamp, for now just reverse to show newest first if they were added sequentially
       setHistory(data.reverse());
     } catch (error) {
       console.error('Failed to fetch family history', error);
@@ -115,13 +119,16 @@ export default function FamilyHistory() {
   };
 
   const saveToServer = async (dataToSave: any[]) => {
-    if (!user) return;
+    if (!user || !activeProfile || !canEdit) return;
     setSaving(true);
     try {
       const batch = writeBatch(db);
       dataToSave.forEach(item => {
         const docRef = doc(collection(db, 'FamilyHistory'));
-        batch.set(docRef, item);
+        batch.set(docRef, {
+          ...item,
+          profileId: activeProfile.id
+        });
       });
       await batch.commit();
       
@@ -152,12 +159,15 @@ export default function FamilyHistory() {
 
   const handleSaveManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeProfile || !canEdit) return;
     setSaving(true);
     
     if (editingRecord) {
       try {
-        await updateDoc(doc(db, 'FamilyHistory', editingRecord.id), manualRecord);
+        await updateDoc(doc(db, 'FamilyHistory', editingRecord.id), {
+          ...manualRecord,
+          profileId: activeProfile.id
+        });
         setEditingRecord(null);
         setShowManualForm(false);
         setManualRecord(defaultRecord);
@@ -174,7 +184,7 @@ export default function FamilyHistory() {
   };
 
   const handleDelete = async () => {
-    if (!editingRecord || !user) return;
+    if (!editingRecord || !user || !canEdit) return;
     
     if (!confirmDelete) {
       setConfirmDelete(true);
@@ -219,79 +229,101 @@ export default function FamilyHistory() {
     return 0;
   });
 
+  if (!activeProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-2xl border border-slate-100 p-8 text-center">
+        <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mb-4">
+          <Users className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-semibold text-slate-900 mb-2">กรุณาเลือกโปรไฟล์</h2>
+        <p className="text-slate-500 mb-6 max-w-md">
+          คุณต้องเลือกโปรไฟล์สุขภาพก่อนเพื่อดูหรือบันทึกข้อมูลประวัติครอบครัว
+        </p>
+        <Link 
+          to="/profiles"
+          className="px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors"
+        >
+          ไปที่หน้าจัดการโปรไฟล์
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-6 h-6 text-indigo-600" />
-            ประวัติสุขภาพครอบครัว (Family Medical History)
+            ประวัติสุขภาพครอบครัว ({activeProfile.name})
           </h1>
           <p className="text-slate-500 mt-1">บันทึกประวัติความเจ็บป่วยของบุคคลในครอบครัว เพื่อประเมินความเสี่ยง</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center relative overflow-hidden group">
-          <div className="absolute right-0 top-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shrink-0">
-              {uploading ? <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div> : <Upload className="w-6 h-6" />}
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-slate-900">อัปโหลดรูปประวัติครอบครัว</h3>
-              <p className="text-sm text-slate-500 mt-1 mb-3">ใช้ AI ช่วยอ่านข้อมูลจากรูปถ่ายหรือเอกสาร</p>
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  disabled={uploading}
-                >
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (เร็ว)</option>
-                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (แม่นยำ)</option>
-                </select>
-                <div className="relative flex-1">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      {canEdit && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center relative overflow-hidden group">
+            <div className="absolute right-0 top-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shrink-0">
+                {uploading ? <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div> : <Upload className="w-6 h-6" />}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-slate-900">อัปโหลดรูปประวัติครอบครัว</h3>
+                <p className="text-sm text-slate-500 mt-1 mb-3">ใช้ AI ช่วยอ่านข้อมูลจากรูปถ่ายหรือเอกสาร</p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
                     disabled={uploading}
-                  />
-                  <button 
-                    disabled={uploading}
-                    className="w-full px-4 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors"
                   >
-                    เลือกรูปภาพ
-                  </button>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (เร็ว)</option>
+                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (แม่นยำ)</option>
+                  </select>
+                  <div className="relative flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      disabled={uploading}
+                    />
+                    <button 
+                      disabled={uploading}
+                      className="w-full px-4 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors"
+                    >
+                      เลือกรูปภาพ
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-          <button 
-            onClick={() => { 
-              setEditingRecord(null);
-              setManualRecord(defaultRecord);
-              setShowManualForm(true); 
-              setExtractedData(null); 
-              setError(''); 
-            }}
-            className="flex-1 p-6 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left"
-          >
-            <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
-              <Plus className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900">เพิ่มข้อมูลด้วยตัวเอง</h3>
-              <p className="text-sm text-slate-500">กรอกรายละเอียดประวัติครอบครัวด้วยตนเอง</p>
-            </div>
-          </button>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+            <button 
+              onClick={() => { 
+                setEditingRecord(null);
+                setManualRecord(defaultRecord);
+                setShowManualForm(true); 
+                setExtractedData(null); 
+                setError(''); 
+              }}
+              className="flex-1 p-6 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left"
+            >
+              <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
+                <Plus className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">เพิ่มข้อมูลด้วยตัวเอง</h3>
+                <p className="text-sm text-slate-500">กรอกรายละเอียดประวัติครอบครัวด้วยตนเอง</p>
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-700">
@@ -598,24 +630,26 @@ export default function FamilyHistory() {
                       <Highlight text={h.Notes} query={searchQuery} />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => {
-                          setEditingRecord(h);
-                          setManualRecord({
-                            Relation: h.Relation || '',
-                            Condition: h.Condition || '',
-                            AgeOfOnset: h.AgeOfOnset || '',
-                            CurrentStatus: h.CurrentStatus || '',
-                            Notes: h.Notes || ''
-                          });
-                          setShowManualForm(true);
-                          setConfirmDelete(false);
-                        }}
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                        title="แก้ไขข้อมูล"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      {canEdit && (
+                        <button 
+                          onClick={() => {
+                            setEditingRecord(h);
+                            setManualRecord({
+                              Relation: h.Relation || '',
+                              Condition: h.Condition || '',
+                              AgeOfOnset: h.AgeOfOnset || '',
+                              CurrentStatus: h.CurrentStatus || '',
+                              Notes: h.Notes || ''
+                            });
+                            setShowManualForm(true);
+                            setConfirmDelete(false);
+                          }}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="แก้ไขข้อมูล"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

@@ -1,40 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart, ArrowUpToLine, ArrowUp, ArrowDown, ActivitySquare, Users } from 'lucide-react';
+import { useProfile } from '../context/ProfileContext';
+import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart, ArrowUpToLine, ArrowUp, ArrowDown, ActivitySquare, Users, UserPlus, ChevronDown, Copy, Check } from 'lucide-react';
 import clsx from 'clsx';
 import { db } from '../firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { activeProfile, profiles, setActiveProfile } = useProfile();
   const location = useLocation();
   const [profileName, setProfileName] = useState<string>('');
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copyUserId = () => {
+    if (user?.uid) {
+      navigator.clipboard.writeText(user.uid);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   useEffect(() => {
     const mainContent = document.getElementById('main-content');
     if (mainContent) {
       mainContent.scrollIntoView({ behavior: 'smooth' });
     }
-
-    // Fetch profile to get the full name
-    const fetchProfile = async () => {
-      if (!user) return;
-      try {
-        const snapshot = await getDocs(collection(db, 'Profile'));
-        const data = snapshot.docs.map(doc => doc.data());
-        if (data && data.length > 0) {
-          const latestProfile = data[data.length - 1];
-          if (latestProfile.Name) {
-            setProfileName(latestProfile.Name);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch profile name:', err);
-      }
-    };
-    
-    fetchProfile();
   }, [location.pathname, user]);
 
   const navItems = [
@@ -46,7 +39,7 @@ export default function Layout() {
     { path: '/family-history', label: 'Family History', icon: Users },
     { path: '/events', label: 'Health Events', icon: CalendarHeart },
     { path: '/chat', label: 'AI Assistant', icon: MessageSquare },
-    { path: '/profile', label: 'Profile', icon: User },
+    { path: '/profiles', label: 'Manage Profiles', icon: Users },
   ];
 
   const scrollToTop = () => {
@@ -80,8 +73,15 @@ export default function Layout() {
       <header id="top-header" className="bg-white border-b border-slate-200">
         <div className="px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="items-center">
-            <h1 className="text-lg md:text-xl font-bold text-slate-800">Health Tracker & Lab Analyzer</h1>
-            <div className="lg:block text-sm text-green-600">{profileName || user?.name || 'Loading...'}</div>
+            <h1 className="text-lg md:text-xl font-bold text-slate-800">Health Tracker</h1>
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-emerald-600">
+                {activeProfile ? `Viewing: ${activeProfile.name}` : 'No Profile Selected'}
+              </div>
+              <Link to="/profiles" className="text-[10px] uppercase tracking-wider text-slate-400 hover:text-indigo-600 font-bold">
+                Change
+              </Link>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
@@ -113,6 +113,59 @@ export default function Layout() {
       <div className="flex flex-1 flex-col md:flex-row">
         {/* Sidebar */}
         <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col">
+          <div className="p-4 border-b border-slate-100">
+            <div className="relative">
+              <button 
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="w-full flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-sm">
+                    {activeProfile?.name.charAt(0) || '?'}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-slate-900 truncate max-w-[100px]">
+                      {activeProfile?.name || 'Select Profile'}
+                    </p>
+                    <p className="text-[10px] text-slate-500">Active Profile</p>
+                  </div>
+                </div>
+                <ChevronDown size={16} className={clsx("transition-transform", isProfileDropdownOpen && "rotate-180")} />
+              </button>
+
+              {isProfileDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                  <div className="max-height-[200px] overflow-y-auto">
+                    {profiles.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          setActiveProfile(p);
+                          setIsProfileDropdownOpen(false);
+                        }}
+                        className={clsx(
+                          "w-full text-left px-4 py-3 text-sm hover:bg-slate-50 transition-colors flex items-center justify-between",
+                          activeProfile?.id === p.id && "bg-emerald-50 text-emerald-700 font-medium"
+                        )}
+                      >
+                        {p.name}
+                        {activeProfile?.id === p.id && <Check size={14} />}
+                      </button>
+                    ))}
+                  </div>
+                  <Link 
+                    to="/profiles" 
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex items-center gap-2 px-4 py-3 text-sm text-indigo-600 hover:bg-indigo-50 border-t border-slate-100 transition-colors font-medium"
+                  >
+                    <UserPlus size={14} />
+                    Manage Profiles
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -134,6 +187,17 @@ export default function Layout() {
               );
             })}
           </nav>
+
+          <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">My Sharing ID</p>
+            <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
+              <code className="text-[10px] text-slate-600 truncate mr-2">{user?.uid}</code>
+              <button onClick={copyUserId} className="text-slate-400 hover:text-indigo-600 transition-colors">
+                {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+              </button>
+            </div>
+            <p className="text-[9px] text-slate-400 mt-2 italic">Share this ID with others to give them access.</p>
+          </div>
         </aside>
 
         {/* Main Content */}

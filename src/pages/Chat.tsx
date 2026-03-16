@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Stethoscope, AlertCircle, Loader2, Search, Calendar, Filter, X, ChevronDown, ChevronUp, ArrowDown, ArrowUp } from 'lucide-react';
+import { Send, Bot, User, Stethoscope, AlertCircle, Loader2, Search, Calendar, Filter, X } from 'lucide-react';
 import Markdown from 'react-markdown';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 
 import { GoogleGenAI } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
-import { collection, getDocs, addDoc, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { useProfile } from '../context/ProfileContext';
+import { collection, getDocs, addDoc, query, orderBy, where } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 
 interface Message {
   role: 'user' | 'model';
@@ -17,6 +18,7 @@ interface Message {
 
 export default function Chat() {
   const { user } = useAuth();
+  const { activeProfile } = useProfile();
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'model', 
@@ -31,7 +33,6 @@ export default function Chat() {
   const [shouldScroll, setShouldScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Filter states
   const [startDate, setStartDate] = useState('');
@@ -42,27 +43,6 @@ export default function Chat() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    // Also scroll the main content area if it's the one with the scrollbar
-    const mainContent = document.querySelector('main');
-    if (mainContent) {
-      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const scrollToFilters = () => {
-    if (!showFilters) {
-      setShowFilters(true);
-      // Wait for state update to render filters
-      setTimeout(() => {
-        filterRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    } else {
-      filterRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
   };
 
   const renderWithHighlight = (children: any, query: string) => {
@@ -84,7 +64,7 @@ export default function Chat() {
   }, [messages, shouldScroll, isFetchingHistory]);
 
   const fetchHistory = async () => {
-    if (!user) {
+    if (!user || !activeProfile) {
       setIsFetchingHistory(false);
       return;
     }
@@ -98,9 +78,13 @@ export default function Chat() {
         setHasInitializedDates(true);
       }
 
-      const q = query(collection(db, 'ChatLogs'), orderBy('timestamp', 'asc'));
-      const querySnapshot = await getDocs(q);
-      let data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      const q = query(
+        collection(db, 'ChatLogs'), 
+        where('profileId', '==', activeProfile.id),
+        orderBy('timestamp', 'asc')
+      );
+      const querySnapshot = await getDocs(q).catch(err => handleFirestoreError(err, OperationType.LIST, 'ChatLogs')) as any;
+      let data = querySnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as any));
       
       if (startDate) {
         data = data.filter(d => new Date(d.timestamp) >= new Date(startDate));
@@ -128,7 +112,7 @@ export default function Chat() {
 
       const greeting: Message = { 
         role: 'model', 
-        text: 'สวัสดีครับ ผมคือ AI ผู้ช่วยแพทย์และเภสัชกรส่วนตัวของคุณ ผมได้อ่านข้อมูลสุขภาพ ผลตรวจเลือด และรายการยาปัจจุบันของคุณเรียบร้อยแล้ว วันนี้มีอาการอะไรให้ผมช่วยดูแล หรืออยากให้ผมวิเคราะห์ผลตรวจสุขภาพให้ฟังไหมครับ?' 
+        text: `สวัสดีครับ ผมคือ AI ผู้ช่วยแพทย์และเภสัชกรส่วนตัวของคุณ ผมได้อ่านข้อมูลสุขภาพ ผลตรวจเลือด และรายการยาปัจจุบันของ ${activeProfile.name} เรียบร้อยแล้ว วันนี้มีอาการอะไรให้ผมช่วยดูแล หรืออยากให้ผมวิเคราะห์ผลตรวจสุขภาพให้ฟังไหมครับ?` 
       };
       
       if (formattedMessages.length > 0) {
@@ -144,17 +128,17 @@ export default function Chat() {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && activeProfile) {
       const timer = setTimeout(() => {
         fetchHistory();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [searchQuery, startDate, endDate, hasInitializedDates, user]);
+  }, [searchQuery, startDate, endDate, hasInitializedDates, user, activeProfile]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !user) return;
+    if (!input.trim() || isLoading || !user || !activeProfile) return;
 
     const userMessage = input.trim();
     setInput('');
@@ -170,67 +154,58 @@ export default function Chat() {
     try {
       // Format messages for Gemini API
       let apiMessages = newMessages
-        // 1. Remove the hardcoded greeting to avoid sending it to the API
         .filter((msg, idx) => !(idx === 0 && msg.role === 'model' && msg.text.includes('สวัสดีครับ ผมคือ AI')))
         .map(msg => ({
           role: msg.role,
           parts: [{ text: msg.text }]
         }));
 
-      // 2. Keep only last 20 messages to save tokens
       apiMessages = apiMessages.slice(-20);
 
-      // 3. Gemini API strictly requires the first message to be from 'user'
       while (apiMessages.length > 0 && apiMessages[0].role === 'model') {
         apiMessages.shift();
       }
 
-      // 4. Ensure strict alternation (user, model, user, model)
       const alternatingMessages: any[] = [];
       let expectedRole = 'user';
       for (const msg of apiMessages) {
         if (msg.role === expectedRole) {
           alternatingMessages.push({
             role: msg.role,
-            parts: [{ text: msg.parts[0].text }]
+            parts: msg.parts
           });
           expectedRole = expectedRole === 'user' ? 'model' : 'user';
         } else {
-          // If we got 'user' but expected 'model', or got 'model' but expected 'user'
-          // We just append the text to the last message in the array
           if (alternatingMessages.length > 0) {
             alternatingMessages[alternatingMessages.length - 1].parts[0].text += '\n\n' + msg.parts[0].text;
           }
         }
       }
 
-      // 5. The last message MUST be from 'user' for generateContent
       if (alternatingMessages.length > 0 && alternatingMessages[alternatingMessages.length - 1].role === 'model') {
         alternatingMessages.pop();
       }
 
-      // Fetch health context from Firestore
+      // Fetch health context from Firestore for the active profile
       let healthContext = "No health data available.";
       try {
-        const [vitalsSnap, labsSnap, medsSnap, historySnap, activitiesSnap, profileSnap] = await Promise.all([
-          getDocs(collection(db, 'Vitals')),
-          getDocs(collection(db, 'Labs')),
-          getDocs(collection(db, 'Medications')),
-          getDocs(collection(db, 'FamilyHistory')),
-          getDocs(collection(db, 'Activities')),
-          getDocs(collection(db, 'Profile'))
-        ]);
+        const [vitalsSnap, labsSnap, medsSnap, historySnap, activitiesSnap] = await Promise.all([
+          getDocs(query(collection(db, 'Vitals'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'Vitals')),
+          getDocs(query(collection(db, 'LabResults'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'LabResults')),
+          getDocs(query(collection(db, 'Medications'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'Medications')),
+          getDocs(query(collection(db, 'FamilyHistory'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'FamilyHistory')),
+          getDocs(query(collection(db, 'Activities'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'Activities'))
+        ]) as any[];
 
-        const vitals = vitalsSnap.docs.map(d => d.data());
-        const labs = labsSnap.docs.map(d => d.data());
-        const meds = medsSnap.docs.map(d => d.data());
-        const history = historySnap.docs.map(d => d.data());
-        const activities = activitiesSnap.docs.map(d => d.data());
-        const profile = profileSnap.docs.map(d => d.data())[0] || {};
+        const vitals = vitalsSnap.docs.map((d: any) => d.data());
+        const labs = labsSnap.docs.map((d: any) => d.data());
+        const meds = medsSnap.docs.map((d: any) => d.data());
+        const history = historySnap.docs.map((d: any) => d.data());
+        const activities = activitiesSnap.docs.map((d: any) => d.data());
 
         healthContext = `
-Profile:
-${JSON.stringify(profile, null, 2)}
+Profile Name: ${activeProfile.name}
+Profile Details: ${JSON.stringify(activeProfile, null, 2)}
 
 Recent Vitals:
 ${JSON.stringify(vitals.slice(-5), null, 2)}
@@ -251,11 +226,23 @@ ${JSON.stringify(activities.slice(-5), null, 2)}
         console.error("Failed to fetch context", e);
       }
 
+      const nowThai = new Date().toLocaleString('th-TH', { 
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+
       const systemInstruction = `
         คุณคือแพทย์ผู้เชี่ยวชาญ (Expert Medical Doctor) และเภสัชกรคลินิก (Clinical Pharmacist)
-        หน้าที่ของคุณคือให้คำปรึกษา แนะนำ และวิเคราะห์ข้อมูลสุขภาพของผู้ป่วย
+        หน้าที่ของคุณคือให้คำปรึกษา แนะนำ และวิเคราะห์ข้อมูลสุขภาพของผู้ป่วยที่ชื่อว่า ${activeProfile.name}
         
-        ข้อมูลสุขภาพปัจจุบันของผู้ป่วย (ดึงมาจากระบบติดตามสุขภาพ):
+        วันที่และเวลาปัจจุบัน: ${nowThai} (ใช้ข้อมูลนี้ในการคำนวณอายุและวิเคราะห์ความสดใหม่ของข้อมูล)
+
+        ข้อมูลสุขภาพปัจจุบันของ ${activeProfile.name} (ดึงมาจากระบบติดตามสุขภาพ):
         ${healthContext}
 
         คำแนะนำในการตอบ:
@@ -268,7 +255,6 @@ ${JSON.stringify(activities.slice(-5), null, 2)}
         7. **คำเตือนสำคัญ:** ต้องระบุเสมอว่าคุณเป็นเพียง AI ผู้ช่วยทางการแพทย์ และผู้ป่วยควรปรึกษาแพทย์เจ้าของไข้เพื่อการวินิจฉัยและการรักษาที่ถูกต้อง
       `;
 
-      // Call Gemini API directly from frontend
       const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: selectedModel,
@@ -280,29 +266,49 @@ ${JSON.stringify(activities.slice(-5), null, 2)}
 
       const modelText = response.text || '';
 
-      // Log the chat to Firestore
+      // Log the chat to Firestore with profileId
       let timestamp = new Date().toISOString();
       try {
         const logData = {
           userMessage,
           modelMessage: modelText,
-          timestamp
+          timestamp,
+          profileId: activeProfile.id,
+          userId: user.uid
         };
         await addDoc(collection(db, 'ChatLogs'), logData);
       } catch (e) {
         console.error("Failed to log chat", e);
       }
       
-      // Add model response to UI
       setShouldScroll(true);
       setMessages(prev => [...prev, { role: 'model', text: modelText, timestamp }]);
     } catch (err: any) {
       setError(err.message || 'An error occurred while communicating with the AI.');
-      // Remove the user message if it failed, or just show error
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (!activeProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+        <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mb-4">
+          <Stethoscope className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-semibold text-slate-900 mb-2">กรุณาเลือกโปรไฟล์สุขภาพ</h2>
+        <p className="text-slate-500 mb-6 max-w-md">
+          คุณต้องเลือกโปรไฟล์สุขภาพก่อนเพื่อใช้งาน AI ผู้ช่วยส่วนตัว เพื่อให้ AI สามารถวิเคราะห์ข้อมูลสุขภาพที่ถูกต้องได้
+        </p>
+        <button
+          onClick={() => window.location.href = '/profiles'}
+          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          ไปที่หน้าจัดการโปรไฟล์
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] min-h-[500px] max-h-[800px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
@@ -314,7 +320,7 @@ ${JSON.stringify(activities.slice(-5), null, 2)}
           </div>
           <div>
             <h2 className="font-semibold text-slate-900">AI Medical & Pharmacy Assistant</h2>
-            <p className="text-xs text-slate-500">Expert analysis based on your personal health data</p>
+            <p className="text-xs text-slate-500">Expert analysis for: <span className="font-medium text-indigo-600">{activeProfile.name}</span></p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -333,7 +339,7 @@ ${JSON.stringify(activities.slice(-5), null, 2)}
               setMessages([
                 { 
                   role: 'model', 
-                  text: 'สวัสดีครับ ผมคือ AI ผู้ช่วยแพทย์และเภสัชกรส่วนตัวของคุณ ผมได้อ่านข้อมูลสุขภาพ ผลตรวจเลือด และรายการยาปัจจุบันของคุณเรียบร้อยแล้ว วันนี้มีอาการอะไรให้ผมช่วยดูแล หรืออยากให้ผมวิเคราะห์ผลตรวจสุขภาพให้ฟังไหมครับ?' 
+                  text: `สวัสดีครับ ผมคือ AI ผู้ช่วยแพทย์และเภสัชกรส่วนตัวของคุณ ผมได้อ่านข้อมูลสุขภาพ ผลตรวจเลือด และรายการยาปัจจุบันของ ${activeProfile.name} เรียบร้อยแล้ว วันนี้มีอาการอะไรให้ผมช่วยดูแล หรืออยากให้ผมวิเคราะห์ผลตรวจสุขภาพให้ฟังไหมครับ?` 
                 }
               ]);
               setError('');
@@ -349,15 +355,15 @@ ${JSON.stringify(activities.slice(-5), null, 2)}
             disabled={isLoading}
             className="px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
           >
-<option value="gemini-3-flash-preview">Gemini 3 Flash Preview  (Default)</option>
-<option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
-<option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
-<option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
-<option value="gemini-flash-latest">Gemini Flash Latest</option>
-<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-<option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
+            <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Default)</option>
+            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+            <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
+            <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
+            <option value="gemini-flash-latest">Gemini Flash Latest</option>
+            <option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+            <option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
           </select>
         </div>
       </div>
@@ -492,7 +498,7 @@ ${JSON.stringify(activities.slice(-5), null, 2)}
                 </div>
                 <div className="p-4 rounded-2xl bg-white border border-slate-200 rounded-tl-sm shadow-sm flex items-center gap-2">
                   <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                  <span className="text-sm text-slate-500">Analyzing your health data...</span>
+                  <span className="text-sm text-slate-500">Analyzing {activeProfile.name}'s health data...</span>
                 </div>
               </div>
             )}
@@ -516,7 +522,7 @@ ${JSON.stringify(activities.slice(-5), null, 2)}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about your lab results, medications, or health trends..."
+            placeholder={`Ask about ${activeProfile.name}'s health...`}
             disabled={isLoading}
             className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
           />

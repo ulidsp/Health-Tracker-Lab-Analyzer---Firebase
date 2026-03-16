@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, FileText, CheckCircle2, AlertCircle, Save, X, Plus, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertCircle, Save, X, Plus, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { useProfile } from '../context/ProfileContext';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
 
 export default function LabResults() {
   const { user } = useAuth();
+  const { activeProfile, canEdit } = useProfile();
   const [labs, setLabs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -40,16 +43,21 @@ export default function LabResults() {
   const [sortOption, setSortOption] = useState('date_desc');
 
   useEffect(() => {
-    if (user) {
+    if (user && activeProfile) {
       fetchLabs();
+    } else {
+      setLabs([]);
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, activeProfile]);
 
   const fetchLabs = async () => {
-    if (!user) return;
+    if (!user || !activeProfile) return;
+    setLoading(true);
     try {
-      const snapshot = await getDocs(collection(db, 'LabResults'));
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const q = query(collection(db, 'LabResults'), where('profileId', '==', activeProfile.id));
+      const snapshot = await getDocs(q).catch(err => handleFirestoreError(err, OperationType.LIST, 'LabResults')) as any;
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
       setLabs(data);
     } catch (error) {
       console.error('Failed to fetch labs', error);
@@ -93,7 +101,7 @@ export default function LabResults() {
   };
 
   const handleSaveExtracted = async () => {
-    if (!extractedData || !user) return;
+    if (!extractedData || !user || !activeProfile || !canEdit) return;
     setSaving(true);
     
     // Format data for long format: Date, TestName, Value, Unit, ReferenceRange, Notes
@@ -103,7 +111,8 @@ export default function LabResults() {
       Value: item.value || item.Value || '',
       Unit: item.unit || item.Unit || '',
       ReferenceRange: item.referenceRange || item.ReferenceRange || '',
-      Notes: selectedNotes
+      Notes: selectedNotes,
+      profileId: activeProfile.id
     }));
 
     try {
@@ -126,7 +135,7 @@ export default function LabResults() {
 
   const handleManualSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeProfile || !canEdit) return;
     if (!manualLab.TestName || !manualLab.Value) {
       setError('กรุณากรอกชื่อการทดสอบและค่าผลลัพธ์');
       return;
@@ -134,16 +143,17 @@ export default function LabResults() {
     
     setSaving(true);
     try {
+      const dataToSave = { ...manualLab, profileId: activeProfile.id };
       if (editingLab) {
         // Update existing
-        await updateDoc(doc(db, 'LabResults', editingLab.id), manualLab);
+        await updateDoc(doc(db, 'LabResults', editingLab.id), dataToSave);
         setIsModalOpen(false);
         setEditingLab(null);
         setManualLab(defaultLab);
         fetchLabs();
       } else {
         // Create new
-        await addDoc(collection(db, 'LabResults'), manualLab);
+        await addDoc(collection(db, 'LabResults'), dataToSave);
         setIsModalOpen(false);
         setManualLab(defaultLab);
         fetchLabs();
@@ -156,7 +166,7 @@ export default function LabResults() {
   };
 
   const handleDelete = async () => {
-    if (!editingLab || !user) return;
+    if (!editingLab || !user || !canEdit) return;
     
     setSaving(true);
     try {
@@ -249,11 +259,26 @@ export default function LabResults() {
     return result;
   }, [labs, searchQuery, filterStartDate, filterEndDate, sortOption]);
 
+  if (!activeProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+          <User size={40} />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">No Profile Selected</h2>
+        <p className="text-slate-500 max-w-xs">Please select or create a health profile to view and manage lab results.</p>
+        <Link to="/profiles" className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+          Manage Profiles
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Lab Results</h1>
-        <p className="text-slate-500 mt-2">Upload and analyze your lab reports using AI.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Lab Results: {activeProfile.name}</h1>
+        <p className="text-slate-500 mt-2">Upload and analyze lab reports for {activeProfile.name} using AI.</p>
       </header>
 
       {/* Upload Section */}
@@ -265,7 +290,8 @@ export default function LabResults() {
           </h2>
           <button 
             onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors text-sm shadow-sm"
+            disabled={!canEdit}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             Manual Entry
@@ -322,12 +348,15 @@ export default function LabResults() {
         </div>
 
         <div className="p-6">
-          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
+          <div className={clsx(
+            "flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors relative",
+            canEdit ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+          )}>
             <input 
               type="file" 
               accept="image/*" 
               onChange={handleFileUpload}
-              disabled={uploading}
+              disabled={uploading || !canEdit}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
             />
             <div className="w-16 h-16 bg-white shadow-sm rounded-full flex items-center justify-center mb-4 text-indigo-600">
@@ -448,7 +477,7 @@ export default function LabResults() {
               </div>
               
               <div className="mt-8 flex justify-between items-center gap-3">
-                {editingLab ? (
+                {editingLab && canEdit ? (
                   <button 
                     type="button"
                     onClick={() => {
@@ -479,17 +508,19 @@ export default function LabResults() {
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit"
-                    disabled={saving}
-                    className={clsx(
-                      "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
-                      editingLab ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
-                    )}
-                  >
-                    <Save className="w-4 h-4" />
-                    {saving ? 'Saving...' : editingLab ? 'Update Record' : 'Save Record'}
-                  </button>
+                  {canEdit && (
+                    <button 
+                      type="submit"
+                      disabled={saving}
+                      className={clsx(
+                        "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
+                        editingLab ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
+                      )}
+                    >
+                      <Save className="w-4 h-4" />
+                      {saving ? 'Saving...' : editingLab ? 'Update Record' : 'Save Record'}
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
@@ -671,9 +702,9 @@ export default function LabResults() {
                         <button 
                           onClick={() => startEdit(l)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
-                          title="Edit"
+                          title={canEdit ? "Edit" : "View Details"}
                         >
-                          <Edit2 className="w-4 h-4" />
+                          {canEdit ? <Edit2 className="w-4 h-4" /> : <Search className="w-4 h-4" />}
                         </button>
                       </div>
                     </td>

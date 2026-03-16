@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2, ArrowUpDown } from 'lucide-react';
+import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2, ArrowUpDown, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 import { useAuth } from '../context/AuthContext';
+import { useProfile } from '../context/ProfileContext';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
 
 export default function Medications() {
   const { user } = useAuth();
+  const { activeProfile, canEdit } = useProfile();
   const [meds, setMeds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -41,15 +44,20 @@ export default function Medications() {
   const [sortOption, setSortOption] = useState('default');
 
   useEffect(() => {
-    if (user) {
+    if (user && activeProfile) {
       fetchMeds();
+    } else {
+      setMeds([]);
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, activeProfile]);
 
   const fetchMeds = async () => {
-    if (!user) return;
+    if (!user || !activeProfile) return;
+    setLoading(true);
     try {
-      const snapshot = await getDocs(collection(db, 'Medications'));
+      const q = query(collection(db, 'Medications'), where('profileId', '==', activeProfile.id));
+      const snapshot = await getDocs(q);
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setMeds(data.reverse());
     } catch (error) {
@@ -129,13 +137,13 @@ export default function Medications() {
 
   const handleSaveManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeProfile || !canEdit) return;
     setSaving(true);
     
     if (editingMed) {
       // Update existing
       try {
-        await updateDoc(doc(db, 'Medications', editingMed.id), manualMed);
+        await updateDoc(doc(db, 'Medications', editingMed.id), { ...manualMed, profileId: activeProfile.id });
         setEditingMed(null);
         setShowManualForm(false);
         setManualMed(defaultMed);
@@ -147,13 +155,13 @@ export default function Medications() {
       }
     } else {
       // Create new
-      const formattedData = [manualMed];
+      const formattedData = [{ ...manualMed, profileId: activeProfile.id }];
       await saveToServer(formattedData);
     }
   };
 
   const handleDelete = async () => {
-    if (!editingMed || !user) return;
+    if (!editingMed || !user || !canEdit) return;
     
     if (!confirmDelete) {
       setConfirmDelete(true);
@@ -176,12 +184,12 @@ export default function Medications() {
   };
 
   const saveToServer = async (dataToSave: any[]) => {
-    if (!user) return;
+    if (!user || !activeProfile) return;
     try {
       const batch = writeBatch(db);
       dataToSave.forEach(data => {
         const newDocRef = doc(collection(db, 'Medications'));
-        batch.set(newDocRef, data);
+        batch.set(newDocRef, { ...data, profileId: activeProfile.id });
       });
       await batch.commit();
       
@@ -299,12 +307,27 @@ export default function Medications() {
   const activeMeds = filteredMeds.filter(med => !med.EndDate || new Date(med.EndDate) >= new Date(new Date().setHours(0,0,0,0)));
   const pastMeds = filteredMeds.filter(med => med.EndDate && new Date(med.EndDate) < new Date(new Date().setHours(0,0,0,0)));
 
+  if (!activeProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+          <User size={40} />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">No Profile Selected</h2>
+        <p className="text-slate-500 max-w-xs">Please select or create a health profile to view and manage medications.</p>
+        <Link to="/profiles" className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+          Manage Profiles
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">ประวัติการใช้ยา (Medications)</h1>
-          <p className="text-slate-500 mt-2">จัดการรายการยาที่ใช้อยู่ปัจจุบันและประวัติการใช้ยาในอดีต</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Medications: {activeProfile.name}</h1>
+          <p className="text-slate-500 mt-2">จัดการรายการยาที่ใช้อยู่ปัจจุบันและประวัติการใช้ยาในอดีตสำหรับ {activeProfile.name}</p>
         </div>
         <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
           <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
@@ -380,13 +403,15 @@ export default function Medications() {
 
           <button 
             onClick={() => { 
+              if (!canEdit) return;
               setEditingMed(null);
               setManualMed(defaultMed);
               setShowManualForm(true); 
               setExtractedData(null); 
               setError(''); 
             }}
-            className="flex-1 p-6 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left"
+            disabled={!canEdit}
+            className="flex-1 p-6 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
               <Plus className="w-6 h-6" />
@@ -495,7 +520,7 @@ export default function Medications() {
               </div>
             </div>
             <div className="mt-6 flex justify-between gap-3">
-              {editingMed ? (
+              {editingMed && canEdit ? (
                 <button 
                   type="button"
                   onClick={handleDelete}
@@ -527,14 +552,16 @@ export default function Medications() {
                 >
                   ยกเลิก
                 </button>
-                <button 
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
-                </button>
+                {canEdit && (
+                  <button 
+                    type="submit"
+                    disabled={saving}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
+                  </button>
+                )}
               </div>
             </div>
           </form>
@@ -770,9 +797,9 @@ export default function Medications() {
                       <button 
                         onClick={() => openEditModal(m)}
                         className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                        title="แก้ไขข้อมูล (เช่น ใส่วันหยุดยา)"
+                        title={canEdit ? "แก้ไขข้อมูล (เช่น ใส่วันหยุดยา)" : "ดูรายละเอียด"}
                       >
-                        <Edit2 className="w-4 h-4" />
+                        {canEdit ? <Edit2 className="w-4 h-4" /> : <Search className="w-4 h-4" />}
                       </button>
                     </td>
                   </tr>

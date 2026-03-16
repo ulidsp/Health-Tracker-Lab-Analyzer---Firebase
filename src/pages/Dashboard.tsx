@@ -1,41 +1,49 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Activity, Droplet, HeartPulse, AlertCircle, User } from 'lucide-react';
+import { Activity, Droplet, HeartPulse, AlertCircle, User, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useProfile } from '../context/ProfileContext';
 import { calculateAge } from '../utils/age';
 import HealthAnalysis from '../components/HealthAnalysis';
-import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { activeProfile } = useProfile();
   const [vitals, setVitals] = useState<any[]>([]);
   const [labs, setLabs] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!user) return;
+      if (!user || !activeProfile) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
       try {
-        const vitalsSnapshot = await getDocs(collection(db, 'Vitals'));
-        const labsSnapshot = await getDocs(collection(db, 'LabResults'));
-        const profileSnapshot = await getDocs(collection(db, 'Profile'));
+        const vitalsQuery = query(collection(db, 'Vitals'), where('profileId', '==', activeProfile.id));
+        const labsQuery = query(collection(db, 'LabResults'), where('profileId', '==', activeProfile.id));
         
-        setVitals(vitalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        setLabs(labsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        const [vitalsSnapshot, labsSnapshot] = await Promise.all([
+          getDocs(vitalsQuery).catch(err => handleFirestoreError(err, OperationType.GET, 'Vitals')),
+          getDocs(labsQuery).catch(err => handleFirestoreError(err, OperationType.GET, 'LabResults'))
+        ]) as any[];
         
-        const profiles = profileSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        if (profiles.length > 0) {
-          setProfile(profiles[profiles.length - 1]);
-        }
+        setVitals(vitalsSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+        setLabs(labsSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
         console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
-  }, [user]);
+  }, [user, activeProfile]);
 
   const filteredVitals = vitals.filter((v: any) => {
     if (!v.Date) return false;
@@ -63,8 +71,8 @@ export default function Dashboard() {
 
   // Helper for Age
   const getAgeInYears = () => {
-    if (!profile?.BirthDate) return null;
-    const birthDate = new Date(profile.BirthDate);
+    if (!activeProfile?.birthDate) return null;
+    const birthDate = new Date(activeProfile.birthDate);
     if (isNaN(birthDate.getTime())) return null;
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -75,8 +83,8 @@ export default function Dashboard() {
     return age;
   };
   const age = getAgeInYears();
-  const isMale = profile?.Gender === 'Male';
-  const isFemale = profile?.Gender === 'Female';
+  const isMale = activeProfile?.gender === 'Male';
+  const isFemale = activeProfile?.gender === 'Female';
 
   // Group Labs by Date for multi-line charts
   const groupedLabs = filteredLabs.reduce((acc: any, curr: any) => {
@@ -214,28 +222,51 @@ export default function Dashboard() {
   const latestBp = bpData.length > 0 ? bpData[bpData.length - 1] : null;
   const latestFbs = [...sugarData].reverse().find(d => d.fbs !== undefined);
 
+  if (!activeProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+          <Users size={40} />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">No Profile Selected</h2>
+        <p className="text-slate-500 max-w-xs">Please select or create a health profile to view your dashboard.</p>
+        <Link to="/profiles" className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+          Manage Profiles
+        </Link>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-medium">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <header className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-            <p className="text-slate-500 mt-2">Overview of your health metrics and API usage.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard: {activeProfile.name}</h1>
+            <p className="text-slate-500 mt-2">Overview of health metrics for {activeProfile.name}.</p>
           </div>
           
           <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100 self-start md:self-center">
-            <img 
-              src={user?.picture} 
-              alt={user?.name} 
-              className="w-10 h-10 rounded-full border-2 border-indigo-50"
-              referrerPolicy="no-referrer"
-            />
+            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold">
+              {activeProfile.name.charAt(0)}
+            </div>
             <div>
-              <p className="font-semibold text-slate-900 text-sm">{profile?.Name || user?.name}</p>
-              {profile?.BirthDate ? (
-                <p className="text-xs text-indigo-600 font-medium">อายุ: {calculateAge(profile.BirthDate)}</p>
+              <p className="font-semibold text-slate-900 text-sm">{activeProfile.name}</p>
+              {activeProfile.birthDate ? (
+                <p className="text-xs text-indigo-600 font-medium">อายุ: {calculateAge(activeProfile.birthDate)}</p>
               ) : (
-                <p className="text-xs text-slate-500">Welcome back</p>
+                <p className="text-xs text-slate-500">Health Profile</p>
               )}
             </div>
           </div>
@@ -413,7 +444,7 @@ export default function Dashboard() {
       </div>
 
       {/* Health Analysis Section */}
-      <HealthAnalysis vitals={filteredVitals} labs={filteredLabs} profile={profile} />
+      <HealthAnalysis vitals={filteredVitals} labs={filteredLabs} profile={activeProfile} />
     </div>
   );
 }

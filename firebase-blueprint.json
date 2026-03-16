@@ -1,0 +1,138 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Health Profile",
+      "description": "A health profile for a specific person, allowing shared access.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the person (e.g., Mom, Dad, Me)" },
+        "ownerId": { "type": "string", "description": "UID of the user who created the profile" },
+        "editors": { "type": "array", "items": { "type": "string" }, "description": "List of UIDs who can edit this profile" },
+        "viewers": { "type": "array", "items": { "type": "string" }, "description": "List of UIDs who can view this profile" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerId", "editors", "viewers"]
+    },
+    "Vitals": {
+      "title": "Vital Signs",
+      "description": "Blood pressure, heart rate, temperature, etc.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "systolic": { "type": "number" },
+        "diastolic": { "type": "number" },
+        "heartRate": { "type": "number" },
+        "temperature": { "type": "number" },
+        "bloodSugar": { "type": "number" },
+        "weight": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["profileId", "userId", "timestamp"]
+    },
+    "Labs": {
+      "title": "Lab Results",
+      "description": "Blood test results and analysis.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "testName": { "type": "string" },
+        "value": { "type": "string" },
+        "unit": { "type": "string" },
+        "referenceRange": { "type": "string" },
+        "status": { "type": "string", "enum": ["Normal", "High", "Low", "Critical"] },
+        "analysis": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["profileId", "userId", "date", "testName", "value"]
+    },
+    "Medications": {
+      "title": "Medications",
+      "description": "Current and past medications.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "dosage": { "type": "string" },
+        "frequency": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "isActive": { "type": "boolean" },
+        "notes": { "type": "string" }
+      },
+      "required": ["profileId", "userId", "name"]
+    },
+    "HealthEvents": {
+      "title": "Health Events",
+      "description": "Surgeries, hospitalizations, or major illnesses.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "event": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "string" }
+      },
+      "required": ["profileId", "userId", "date", "event"]
+    },
+    "FamilyHistory": {
+      "title": "Family Medical History",
+      "description": "Medical conditions in the family.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string" },
+        "userId": { "type": "string" },
+        "relative": { "type": "string" },
+        "condition": { "type": "string" },
+        "ageOfOnset": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["profileId", "userId", "relative", "condition"]
+    },
+    "Activities": {
+      "title": "Physical Activities",
+      "description": "Exercise and movement logs.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "type": { "type": "string" },
+        "duration": { "type": "number" },
+        "intensity": { "type": "string", "enum": ["Low", "Moderate", "High"] },
+        "calories": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["profileId", "userId", "date", "type"]
+    },
+    "ChatLogs": {
+      "title": "Chat History",
+      "description": "Logs of conversations with the AI assistant.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userMessage": { "type": "string" },
+        "modelMessage": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["profileId", "userId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/Profiles/{profileId}": { "schema": "Profile", "description": "Health profiles" },
+    "/Vitals/{vitalId}": { "schema": "Vitals", "description": "Vital signs records" },
+    "/Labs/{labId}": { "schema": "Labs", "description": "Laboratory test results" },
+    "/Medications/{medId}": { "schema": "Medications", "description": "Medication records" },
+    "/HealthEvents/{eventId}": { "schema": "HealthEvents", "description": "Major health events" },
+    "/FamilyHistory/{historyId}": { "schema": "FamilyHistory", "description": "Family medical history" },
+    "/Activities/{activityId}": { "schema": "Activities", "description": "Physical activity logs" },
+    "/ChatLogs/{logId}": { "schema": "ChatLogs", "description": "AI assistant chat logs" }
+  }
+}

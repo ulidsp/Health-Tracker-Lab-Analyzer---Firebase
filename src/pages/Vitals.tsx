@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Save, Activity, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, X } from 'lucide-react';
+import { Plus, Save, Activity, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, X, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 import { useAuth } from '../context/AuthContext';
+import { useProfile } from '../context/ProfileContext';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 
 export default function Vitals() {
   const { user } = useAuth();
+  const { activeProfile, canEdit } = useProfile();
   const [vitals, setVitals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,15 +37,20 @@ export default function Vitals() {
   const [sortOption, setSortOption] = useState('date_desc');
 
   useEffect(() => {
-    if (user) {
+    if (user && activeProfile) {
       fetchVitals();
+    } else {
+      setVitals([]);
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, activeProfile]);
 
   const fetchVitals = async () => {
-    if (!user) return;
+    if (!user || !activeProfile) return;
+    setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'Vitals'));
+      const q = query(collection(db, 'Vitals'), where('profileId', '==', activeProfile.id));
+      const querySnapshot = await getDocs(q);
       const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setVitals(data);
     } catch (error) {
@@ -58,19 +66,20 @@ export default function Vitals() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeProfile || !canEdit) return;
     setSaving(true);
     try {
+      const dataToSave = { ...formData, profileId: activeProfile.id };
       if (editingRecord) {
         // Update existing
-        await updateDoc(doc(db, 'Vitals', editingRecord.id), formData);
+        await updateDoc(doc(db, 'Vitals', editingRecord.id), dataToSave);
         setEditingRecord(null);
         setFormData(defaultFormData);
         setIsModalOpen(false);
         fetchVitals();
       } else {
         // Create new
-        await addDoc(collection(db, 'Vitals'), formData);
+        await addDoc(collection(db, 'Vitals'), dataToSave);
         setFormData(defaultFormData);
         setIsModalOpen(false);
         fetchVitals();
@@ -83,7 +92,7 @@ export default function Vitals() {
   };
 
   const handleDelete = async () => {
-    if (!editingRecord || !user) return;
+    if (!editingRecord || !user || !canEdit) return;
     
     setSaving(true);
     try {
@@ -172,20 +181,37 @@ export default function Vitals() {
     return result;
   }, [vitals, searchQuery, filterStartDate, filterEndDate, sortOption]);
 
+  if (!activeProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+          <User size={40} />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">No Profile Selected</h2>
+        <p className="text-slate-500 max-w-xs">Please select or create a health profile to view and manage vital signs.</p>
+        <Link to="/profiles" className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+          Manage Profiles
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Vitals</h1>
-          <p className="text-slate-500 mt-2">Record and track your daily vital signs.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Vitals: {activeProfile.name}</h1>
+          <p className="text-slate-500 mt-2">Record and track daily vital signs for {activeProfile.name}.</p>
         </div>
-        <button 
-          onClick={openAddModal}
-          className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
-        >
-          <Plus className="w-5 h-5" />
-          Add New Record
-        </button>
+        {canEdit && (
+          <button 
+            onClick={openAddModal}
+            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+          >
+            <Plus className="w-5 h-5" />
+            Add New Record
+          </button>
+        )}
       </header>
 
       {/* Modal Form */}
@@ -306,7 +332,7 @@ export default function Vitals() {
               </div>
 
               <div className="mt-8 flex justify-between items-center gap-3">
-                {editingRecord ? (
+                {editingRecord && canEdit ? (
                   <button 
                     type="button"
                     onClick={() => {
@@ -337,17 +363,19 @@ export default function Vitals() {
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
-                    disabled={saving}
-                    className={clsx(
-                      "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
-                      editingRecord ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
-                    )}
-                  >
-                    <Save className="w-4 h-4" />
-                    {saving ? 'Saving...' : editingRecord ? 'Update Record' : 'Save Record'}
-                  </button>
+                  {canEdit && (
+                    <button 
+                      type="submit" 
+                      disabled={saving}
+                      className={clsx(
+                        "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
+                        editingRecord ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
+                      )}
+                    >
+                      <Save className="w-4 h-4" />
+                      {saving ? 'Saving...' : editingRecord ? 'Update Record' : 'Save Record'}
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
@@ -466,9 +494,9 @@ export default function Vitals() {
                         <button 
                           onClick={() => startEdit(v)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
-                          title="Edit"
+                          title={canEdit ? "Edit" : "View Details"}
                         >
-                          <Edit2 className="w-4 h-4" />
+                          {canEdit ? <Edit2 className="w-4 h-4" /> : <Search className="w-4 h-4" />}
                         </button>
                       </div>
                     </td>

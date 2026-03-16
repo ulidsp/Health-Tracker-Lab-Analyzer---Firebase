@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, Activity, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2, ArrowUpDown } from 'lucide-react';
+import { Upload, Activity, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2, ArrowUpDown, Users } from 'lucide-react';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 import { useAuth } from '../context/AuthContext';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { useProfile } from '../context/ProfileContext';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import { Link } from 'react-router-dom';
 
 export default function Activities() {
   const { user } = useAuth();
+  const { activeProfile, canEdit } = useProfile();
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -42,17 +45,19 @@ export default function Activities() {
   const [sortOption, setSortOption] = useState('default');
 
   useEffect(() => {
-    if (user) {
+    if (user && activeProfile) {
       fetchActivities();
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, activeProfile]);
 
   const fetchActivities = async () => {
-    if (!user) return;
+    if (!user || !activeProfile) return;
+    setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'Activities'));
+      const q = query(collection(db, 'Activities'), where('profileId', '==', activeProfile.id));
+      const querySnapshot = await getDocs(q);
       const data = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -135,13 +140,16 @@ export default function Activities() {
 
   const handleSaveManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeProfile || !canEdit) return;
     setSaving(true);
     
     if (editingActivity) {
       // Update existing
       try {
-        await updateDoc(doc(db, 'Activities', editingActivity.id), manualActivity);
+        await updateDoc(doc(db, 'Activities', editingActivity.id), {
+          ...manualActivity,
+          profileId: activeProfile.id
+        });
         setEditingActivity(null);
         setShowManualForm(false);
         setManualActivity(defaultActivity);
@@ -159,7 +167,7 @@ export default function Activities() {
   };
 
   const handleDelete = async () => {
-    if (!editingActivity || !user) return;
+    if (!editingActivity || !user || !canEdit) return;
     
     if (!confirmDelete) {
       setConfirmDelete(true);
@@ -182,12 +190,15 @@ export default function Activities() {
   };
 
   const saveToServer = async (dataToSave: any[]) => {
-    if (!user) return;
+    if (!user || !activeProfile || !canEdit) return;
     try {
       const batch = writeBatch(db);
       dataToSave.forEach(item => {
         const docRef = doc(collection(db, 'Activities'));
-        batch.set(docRef, item);
+        batch.set(docRef, {
+          ...item,
+          profileId: activeProfile.id
+        });
       });
       await batch.commit();
       
@@ -306,11 +317,31 @@ export default function Activities() {
   const activeActivities = filteredActivities.filter(activity => !activity.EndDate || new Date(activity.EndDate) >= new Date(new Date().setHours(0,0,0,0)));
   const pastActivities = filteredActivities.filter(activity => activity.EndDate && new Date(activity.EndDate) < new Date(new Date().setHours(0,0,0,0)));
 
+  if (!activeProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-2xl border border-slate-100 p-8 text-center">
+        <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mb-4">
+          <Activity className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-semibold text-slate-900 mb-2">กรุณาเลือกโปรไฟล์</h2>
+        <p className="text-slate-500 mb-6 max-w-md">
+          คุณต้องเลือกโปรไฟล์สุขภาพก่อนเพื่อดูหรือบันทึกข้อมูลกิจกรรม
+        </p>
+        <Link 
+          to="/profiles"
+          className="px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors"
+        >
+          ไปที่หน้าจัดการโปรไฟล์
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">กิจวัตรและกิจกรรม (Activities)</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">กิจวัตรและกิจกรรม ({activeProfile.name})</h1>
           <p className="text-slate-500 mt-2">บันทึกกิจวัตรที่มีผลกับสุขภาพ เช่น การออกกำลังกาย การนอนหลับ การพักผ่อน</p>
         </div>
         <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
@@ -335,76 +366,78 @@ export default function Activities() {
       </header>
 
       {/* Action Buttons & Upload Settings */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row gap-4 items-end sm:items-center justify-between">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700 whitespace-nowrap">วันที่เริ่มกิจกรรม (ค่าเริ่มต้น):</label>
-              <input 
-                type="date" 
-                value={uploadStartDate}
-                onChange={(e) => setUploadStartDate(e.target.value)}
-                disabled={uploading}
-                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700 whitespace-nowrap">วันที่หยุดกิจกรรม (ค่าเริ่มต้น):</label>
-              <input 
-                type="date" 
-                value={uploadEndDate}
-                onChange={(e) => setUploadEndDate(e.target.value)}
-                disabled={uploading}
-                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-              />
+      {canEdit && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row gap-4 items-end sm:items-center justify-between">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700 whitespace-nowrap">วันที่เริ่มกิจกรรม (ค่าเริ่มต้น):</label>
+                <input 
+                  type="date" 
+                  value={uploadStartDate}
+                  onChange={(e) => setUploadStartDate(e.target.value)}
+                  disabled={uploading}
+                  className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700 whitespace-nowrap">วันที่หยุดกิจกรรม (ค่าเริ่มต้น):</label>
+                <input 
+                  type="date" 
+                  value={uploadEndDate}
+                  onChange={(e) => setUploadEndDate(e.target.value)}
+                  disabled={uploading}
+                  className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                />
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
-          <div className="flex-1 relative group cursor-pointer hover:bg-slate-50 transition-colors">
-            <input 
-              type="file" 
-              accept="image/*" 
-              onChange={handleFileUpload}
-              disabled={uploading}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
-            />
-            <div className="p-6 flex items-center gap-4">
-              <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
-                {uploading ? (
-                  <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Upload className="w-6 h-6" />
-                )}
+          
+          <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+            <div className="flex-1 relative group cursor-pointer hover:bg-slate-50 transition-colors">
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleFileUpload}
+                disabled={uploading}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+              />
+              <div className="p-6 flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                  {uploading ? (
+                    <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Upload className="w-6 h-6" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900">สแกนข้อมูลกิจกรรม (AI)</h3>
+                  <p className="text-sm text-slate-500">อัปโหลดรูปภาพจากแอปสุขภาพเพื่อดึงข้อมูลอัตโนมัติ</p>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => { 
+                setEditingActivity(null);
+                setManualActivity(defaultActivity);
+                setShowManualForm(true); 
+                setExtractedData(null); 
+                setError(''); 
+              }}
+              className="flex-1 p-6 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left"
+            >
+              <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
+                <Plus className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900">สแกนข้อมูลกิจกรรม (AI)</h3>
-                <p className="text-sm text-slate-500">อัปโหลดรูปภาพจากแอปสุขภาพเพื่อดึงข้อมูลอัตโนมัติ</p>
+                <h3 className="font-semibold text-slate-900">เพิ่มข้อมูลกิจกรรมด้วยตัวเอง</h3>
+                <p className="text-sm text-slate-500">กรอกรายละเอียดกิจกรรมด้วยตนเอง</p>
               </div>
-            </div>
+            </button>
           </div>
-
-          <button 
-            onClick={() => { 
-              setEditingActivity(null);
-              setManualActivity(defaultActivity);
-              setShowManualForm(true); 
-              setExtractedData(null); 
-              setError(''); 
-            }}
-            className="flex-1 p-6 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left"
-          >
-            <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
-              <Plus className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900">เพิ่มข้อมูลกิจกรรมด้วยตัวเอง</h3>
-              <p className="text-sm text-slate-500">กรอกรายละเอียดกิจกรรมด้วยตนเอง</p>
-            </div>
-          </button>
         </div>
-      </div>
+      )}
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-700">
@@ -872,13 +905,15 @@ export default function Activities() {
                       <Highlight text={a.Notes || ''} query={searchQuery} />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => openEditModal(a)}
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                        title="แก้ไขข้อมูล"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      {canEdit && (
+                        <button 
+                          onClick={() => openEditModal(a)}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="แก้ไขข้อมูล"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

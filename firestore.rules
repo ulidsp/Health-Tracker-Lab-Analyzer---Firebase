@@ -2,14 +2,113 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: Profiles
+    // Fields:
+    //   - name: string (required)
+    //   - ownerId: string (required, immutable)
+    //   - editors: list of strings (required) - UIDs allowed to edit
+    //   - viewers: list of strings (required) - UIDs allowed to view
+    //
+    // All other collections (Vitals, Labs, Medications, etc.):
+    // Fields:
+    //   - profileId: string (required, immutable) - Reference to Profiles
+    //   - userId: string (required) - UID of the creator
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Match all documents
-    match /{document=**} {
-      allow read, write: if isAuthenticated();
+    // Check if user is the owner of the profile
+    function isProfileOwner(profileId) {
+      return isAuthenticated() && get(/databases/$(database)/documents/Profiles/$(profileId)).data.ownerId == request.auth.uid;
+    }
+
+    // Check if user is an editor of the profile
+    function isProfileEditor(profileId) {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/Profiles/$(profileId)).data.ownerId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/Profiles/$(profileId)).data.editors
+      );
+    }
+
+    // Check if user is a viewer of the profile
+    function isProfileViewer(profileId) {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/Profiles/$(profileId)).data.ownerId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/Profiles/$(profileId)).data.editors ||
+        request.auth.uid in get(/databases/$(database)/documents/Profiles/$(profileId)).data.viewers
+      );
+    }
+
+    // Validate Profile document
+    function isValidProfile(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.ownerId is string &&
+             data.editors is list &&
+             data.viewers is list;
+    }
+
+    // Validate Health Data document
+    function isValidHealthData(data) {
+      return data.profileId is string &&
+             data.userId is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Profiles Collection
+    match /Profiles/{profileId} {
+      allow read: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid ||
+        request.auth.uid in resource.data.editors ||
+        request.auth.uid in resource.data.viewers
+      );
+      
+      allow create: if isAuthenticated() && 
+                    isValidProfile(request.resource.data) && 
+                    request.resource.data.ownerId == request.auth.uid;
+      
+      allow update: if isAuthenticated() && 
+                    isValidProfile(request.resource.data) && 
+                    resource.data.ownerId == request.auth.uid &&
+                    request.resource.data.ownerId == resource.data.ownerId; // ownerId is immutable
+      
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // Health Data Collections
+    match /{collectionName}/{docId} {
+      // List of collections that follow profile-based access
+      allow read: if isAuthenticated() && 
+                  collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs'] &&
+                  isProfileViewer(resource.data.profileId);
+      
+      allow create: if isAuthenticated() && 
+                    collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs'] &&
+                    isValidHealthData(request.resource.data) &&
+                    isProfileEditor(request.resource.data.profileId);
+      
+      allow update: if isAuthenticated() && 
+                    collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs'] &&
+                    isValidHealthData(request.resource.data) &&
+                    isProfileEditor(resource.data.profileId) &&
+                    request.resource.data.profileId == resource.data.profileId; // profileId is immutable
+      
+      allow delete: if isAuthenticated() && 
+                    collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs'] &&
+                    isProfileEditor(resource.data.profileId);
     }
   }
 }

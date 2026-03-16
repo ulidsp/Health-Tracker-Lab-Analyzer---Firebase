@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CalendarHeart, Plus, Save, X, Activity, Stethoscope, Syringe, AlertTriangle, Upload, Image as ImageIcon, Loader2, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown } from 'lucide-react';
+import { CalendarHeart, Plus, Save, X, Activity, Stethoscope, Syringe, AlertTriangle, Upload, Image as ImageIcon, Loader2, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 import { useAuth } from '../context/AuthContext';
+import { useProfile } from '../context/ProfileContext';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 
 export default function HealthEvents() {
   const { user } = useAuth();
+  const { activeProfile, canEdit } = useProfile();
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,15 +47,20 @@ export default function HealthEvents() {
   ];
 
   useEffect(() => {
-    if (user) {
+    if (user && activeProfile) {
       fetchEvents();
+    } else {
+      setEvents([]);
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, activeProfile]);
 
   const fetchEvents = async () => {
-    if (!user) return;
+    if (!user || !activeProfile) return;
+    setLoading(true);
     try {
-      const snapshot = await getDocs(collection(db, 'HealthEvents'));
+      const q = query(collection(db, 'HealthEvents'), where('profileId', '==', activeProfile.id));
+      const snapshot = await getDocs(q);
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setEvents(data);
     } catch (error) {
@@ -64,21 +72,22 @@ export default function HealthEvents() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeProfile || !canEdit) return;
     setSaving(true);
     setError('');
     
     try {
+      const dataToSave = { ...newEvent, profileId: activeProfile.id };
       if (editingEvent) {
         // Update existing
-        await updateDoc(doc(db, 'HealthEvents', editingEvent.id), newEvent);
+        await updateDoc(doc(db, 'HealthEvents', editingEvent.id), dataToSave);
         setIsModalOpen(false);
         setEditingEvent(null);
         setNewEvent(defaultEvent);
         fetchEvents();
       } else {
         // Create new
-        await addDoc(collection(db, 'HealthEvents'), newEvent);
+        await addDoc(collection(db, 'HealthEvents'), dataToSave);
         setIsModalOpen(false);
         setNewEvent(defaultEvent);
         fetchEvents();
@@ -91,7 +100,7 @@ export default function HealthEvents() {
   };
 
   const handleDelete = async () => {
-    if (!editingEvent || !user) return;
+    if (!editingEvent || !user || !canEdit) return;
     
     setSaving(true);
     try {
@@ -226,16 +235,32 @@ export default function HealthEvents() {
     return eventTypes.find(t => t.value === typeValue) || eventTypes[4];
   };
 
+  if (!activeProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+          <Users size={40} />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">No Profile Selected</h2>
+        <p className="text-slate-500 max-w-xs">Please select or create a health profile to view and manage health events.</p>
+        <Link to="/profiles" className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+          Manage Profiles
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Health Events</h1>
-          <p className="text-slate-500 mt-2">Record medical history, symptoms, surgeries, and illnesses.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Health Events: {activeProfile.name}</h1>
+          <p className="text-slate-500 mt-2">Record medical history, symptoms, surgeries, and illnesses for {activeProfile.name}.</p>
         </div>
         <button 
           onClick={openAddModal}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+          disabled={!canEdit}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-5 h-5" />
           Add Event
@@ -378,7 +403,7 @@ export default function HealthEvents() {
               </div>
 
               <div className="mt-8 flex justify-between items-center gap-3">
-                {editingEvent ? (
+                {editingEvent && canEdit ? (
                   <button 
                     type="button"
                     onClick={() => {
@@ -409,17 +434,19 @@ export default function HealthEvents() {
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit"
-                    disabled={saving}
-                    className={clsx(
-                      "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
-                      editingEvent ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
-                    )}
-                  >
-                    <Save className="w-4 h-4" />
-                    {saving ? 'Saving...' : editingEvent ? 'Update Event' : 'Save Event'}
-                  </button>
+                  {canEdit && (
+                    <button 
+                      type="submit"
+                      disabled={saving}
+                      className={clsx(
+                        "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
+                        editingEvent ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
+                      )}
+                    >
+                      <Save className="w-4 h-4" />
+                      {saving ? 'Saving...' : editingEvent ? 'Update Event' : 'Save Event'}
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
@@ -533,10 +560,10 @@ export default function HealthEvents() {
                           <button 
                             onClick={() => startEdit(event)}
                             className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-slate-600 hover:text-indigo-700 bg-white rounded-full border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
-                            title="Edit Event"
+                            title={canEdit ? "Edit Event" : "View Details"}
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
-                            <span>Edit</span>
+                            {canEdit ? <Edit2 className="w-3.5 h-3.5" /> : <Search className="w-3.5 h-3.5" />}
+                            <span>{canEdit ? 'Edit' : 'View'}</span>
                           </button>
                         </div>
                       </div>
