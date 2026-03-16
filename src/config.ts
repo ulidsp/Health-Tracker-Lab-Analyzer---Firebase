@@ -12,6 +12,7 @@ export enum UserRole {
  */
 export const AUTHORIZED_USERS: Record<string, UserRole> = {
   'ulidsp@gmail.com': UserRole.ADMIN, // Your email
+  // 'admin@gmail.com': UserRole.ADMIN,
   // 'user@gmail.com': UserRole.USER,
   // 'reader@gmail.com': UserRole.READER,
 };
