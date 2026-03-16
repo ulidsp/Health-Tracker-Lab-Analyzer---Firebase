@@ -8,6 +8,7 @@ import Vitals from './pages/Vitals';
 import LabResults from './pages/LabResults';
 import Medications from './pages/Medications';
 import HealthEvents from './pages/HealthEvents';
+import Notes from './pages/Notes';
 import FamilyHistory from './pages/FamilyHistory';
 import Activities from './pages/Activities';
 import Chat from './pages/Chat';
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="activities" element={<Activities />} />
               <Route path="family-history" element={<FamilyHistory />} />
               <Route path="events" element={<HealthEvents />} />
+              <Route path="notes" element={<Notes />} />
               <Route path="chat" element={<Chat />} />
               <Route path="profile" element={<Profile />} />
               <Route path="profiles" element={<Profiles />} />

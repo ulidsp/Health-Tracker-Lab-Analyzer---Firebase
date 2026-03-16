@@ -128,6 +128,19 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["profileId", "userId", "timestamp"]
+    },
+    "Notes": {
+      "title": "Notes",
+      "description": "General notes and records for a profile.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "title": { "type": "string" },
+        "content": { "type": "string" }
+      },
+      "required": ["profileId", "userId", "date", "title"]
     }
   },
   "firestore": {
@@ -138,6 +151,7 @@
     "/HealthEvents/{eventId}": { "schema": "HealthEvents", "description": "Major health events" },
     "/FamilyHistory/{historyId}": { "schema": "FamilyHistory", "description": "Family medical history" },
     "/Activities/{activityId}": { "schema": "Activities", "description": "Physical activity logs" },
-    "/ChatLogs/{logId}": { "schema": "ChatLogs", "description": "AI assistant chat logs" }
+    "/ChatLogs/{logId}": { "schema": "ChatLogs", "description": "AI assistant chat logs" },
+    "/Notes/{noteId}": { "schema": "Notes", "description": "General notes and records" }
   }
 }
