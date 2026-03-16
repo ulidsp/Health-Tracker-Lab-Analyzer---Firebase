@@ -232,8 +232,8 @@ export default function Profiles() {
                 <textarea
                   value={formData.editors}
                   onChange={(e) => setFormData({ ...formData, editors: e.target.value })}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none h-20"
-                  placeholder="Paste User UIDs here..."
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none h-20 text-sm"
+                  placeholder="Leave blank if using alone. Paste other users' UIDs to let them edit this profile."
                 />
               </div>
 
@@ -244,9 +244,12 @@ export default function Profiles() {
                 <textarea
                   value={formData.viewers}
                   onChange={(e) => setFormData({ ...formData, viewers: e.target.value })}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none h-20"
-                  placeholder="Paste User UIDs here..."
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none h-20 text-sm"
+                  placeholder="Leave blank if using alone. Paste other users' UIDs to let them view this profile."
                 />
+                <p className="mt-2 text-[10px] text-gray-400 italic">
+                  * You can find your own UID in the sidebar under "My Sharing ID".
+                </p>
               </div>
 
               <div className="pt-4 flex gap-3">
