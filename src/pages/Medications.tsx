@@ -189,7 +189,11 @@ export default function Medications() {
       const batch = writeBatch(db);
       dataToSave.forEach(data => {
         const newDocRef = doc(collection(db, 'Medications'));
-        batch.set(newDocRef, { ...data, profileId: activeProfile.id });
+        batch.set(newDocRef, { 
+          ...data, 
+          profileId: activeProfile.id,
+          userId: user.uid
+        });
       });
       await batch.commit();
       

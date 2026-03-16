@@ -127,7 +127,8 @@ export default function FamilyHistory() {
         const docRef = doc(collection(db, 'FamilyHistory'));
         batch.set(docRef, {
           ...item,
-          profileId: activeProfile.id
+          profileId: activeProfile.id,
+          userId: user.uid
         });
       });
       await batch.commit();

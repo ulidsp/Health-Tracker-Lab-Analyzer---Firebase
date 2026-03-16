@@ -72,7 +72,11 @@ export default function Notes() {
     setError('');
     
     try {
-      const dataToSave = { ...newNote, profileId: activeProfile.id };
+      const dataToSave = { 
+        ...newNote, 
+        profileId: activeProfile.id,
+        userId: user.uid
+      };
       if (editingNote) {
         // Update existing
         await updateDoc(doc(db, 'Notes', editingNote.id), dataToSave);

@@ -77,7 +77,11 @@ export default function HealthEvents() {
     setError('');
     
     try {
-      const dataToSave = { ...newEvent, profileId: activeProfile.id };
+      const dataToSave = { 
+        ...newEvent, 
+        profileId: activeProfile.id,
+        userId: user.uid
+      };
       if (editingEvent) {
         // Update existing
         await updateDoc(doc(db, 'HealthEvents', editingEvent.id), dataToSave);

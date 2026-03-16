@@ -112,7 +112,8 @@ export default function LabResults() {
       Unit: item.unit || item.Unit || '',
       ReferenceRange: item.referenceRange || item.ReferenceRange || '',
       Notes: selectedNotes,
-      profileId: activeProfile.id
+      profileId: activeProfile.id,
+      userId: user.uid
     }));
 
     try {
@@ -143,7 +144,11 @@ export default function LabResults() {
     
     setSaving(true);
     try {
-      const dataToSave = { ...manualLab, profileId: activeProfile.id };
+      const dataToSave = { 
+        ...manualLab, 
+        profileId: activeProfile.id,
+        userId: user.uid
+      };
       if (editingLab) {
         // Update existing
         await updateDoc(doc(db, 'LabResults', editingLab.id), dataToSave);

@@ -69,7 +69,11 @@ export default function Vitals() {
     if (!user || !activeProfile || !canEdit) return;
     setSaving(true);
     try {
-      const dataToSave = { ...formData, profileId: activeProfile.id };
+      const dataToSave = { 
+        ...formData, 
+        profileId: activeProfile.id,
+        userId: user.uid
+      };
       if (editingRecord) {
         // Update existing
         await updateDoc(doc(db, 'Vitals', editingRecord.id), dataToSave);

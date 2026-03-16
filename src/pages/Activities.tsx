@@ -197,7 +197,8 @@ export default function Activities() {
         const docRef = doc(collection(db, 'Activities'));
         batch.set(docRef, {
           ...item,
-          profileId: activeProfile.id
+          profileId: activeProfile.id,
+          userId: user.uid
         });
       });
       await batch.commit();
