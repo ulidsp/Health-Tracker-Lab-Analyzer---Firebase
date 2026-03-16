@@ -38,6 +38,7 @@ export default function App() {
               <Route path="family-history" element={<FamilyHistory />} />
               <Route path="events" element={<HealthEvents />} />
               <Route path="chat" element={<Chat />} />
+              <Route path="profile" element={<Profile />} />
               <Route path="profiles" element={<Profiles />} />
             </Route>
           </Routes>

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, Save, ShieldCheck } from 'lucide-react';
 import { calculateAge } from '../utils/age';
-import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { collection, getDocs, addDoc, updateDoc, doc, query, where, serverTimestamp } from 'firebase/firestore';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -29,10 +29,21 @@ export default function Profile() {
   const fetchProfile = async () => {
     if (!user) return;
     try {
-      const querySnapshot = await getDocs(collection(db, 'Profile'));
-      if (!querySnapshot.empty) {
+      // Fetch the profile owned by the current user
+      const q = query(collection(db, 'Profiles'), where('ownerId', '==', user.uid));
+      const querySnapshot = await getDocs(q).catch(err => handleFirestoreError(err, OperationType.LIST, 'Profiles'));
+      if (querySnapshot && !querySnapshot.empty) {
         const docSnap = querySnapshot.docs[0];
-        setProfile({ id: docSnap.id, ...docSnap.data() });
+        const data = docSnap.data();
+        setProfile({ 
+          id: docSnap.id, 
+          Name: data.name || '',
+          Gender: data.gender || '',
+          BloodGroup: data.bloodGroup || '',
+          BirthDate: data.birthDate || '',
+          MedicalConditions: data.medicalConditions || '',
+          Allergies: data.allergies || ''
+        });
       }
     } catch (error) {
       console.error('Failed to fetch profile', error);
@@ -50,20 +61,36 @@ export default function Profile() {
     if (!user) return;
     setSaving(true);
     try {
-      const profileData = { ...profile };
-      const docId = profileData.id;
-      delete profileData.id;
+      const profileData = {
+        name: profile.Name,
+        gender: profile.Gender,
+        bloodGroup: profile.BloodGroup,
+        birthDate: profile.BirthDate,
+        medicalConditions: profile.MedicalConditions,
+        allergies: profile.Allergies,
+        editors: profile.editors || [],
+        viewers: profile.viewers || [],
+        updatedAt: serverTimestamp()
+      };
+
+      const docId = profile.id;
 
       if (docId) {
-        await updateDoc(doc(db, 'Profile', docId), profileData);
+        await updateDoc(doc(db, 'Profiles', docId), profileData).catch(err => handleFirestoreError(err, OperationType.UPDATE, `Profiles/${docId}`));
       } else {
-        const docRef = await addDoc(collection(db, 'Profile'), profileData);
-        setProfile({ ...profile, id: docRef.id });
+        const newProfile = {
+          ...profileData,
+          ownerId: user.uid,
+          createdAt: serverTimestamp()
+        };
+        const docRef = await addDoc(collection(db, 'Profiles'), newProfile).catch(err => handleFirestoreError(err, OperationType.CREATE, 'Profiles'));
+        if (docRef) {
+          setProfile({ ...profile, id: docRef.id });
+        }
       }
       alert('Profile saved successfully!');
     } catch (error) {
       console.error('Failed to save profile', error);
-      alert('Failed to save profile.');
     } finally {
       setSaving(false);
     }

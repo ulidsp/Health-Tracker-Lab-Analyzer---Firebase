@@ -45,6 +45,11 @@ export default function Profiles() {
     e.preventDefault();
     if (!user) return;
 
+    if (!formData.name.trim()) {
+      alert('Please enter a profile name.');
+      return;
+    }
+
     const profileData = {
       name: formData.name,
       gender: formData.gender,
@@ -67,6 +72,7 @@ export default function Profiles() {
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error saving profile:', error);
+      alert('Failed to save profile. Please check your permissions or input data.');
     }
   };
 
