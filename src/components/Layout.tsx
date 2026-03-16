@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
-import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart, ArrowUpToLine, ArrowUp, ArrowDown, ActivitySquare, Users, UserPlus, ChevronDown, Copy, Check } from 'lucide-react';
+import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart, ArrowUpToLine, ArrowUp, ArrowDown, ActivitySquare, Users, UserPlus, ChevronDown, Copy, Check, Home } from 'lucide-react';
 import clsx from 'clsx';
 import { db } from '../firebase';
 import { collection, getDocs } from 'firebase/firestore';
@@ -85,6 +85,15 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
+            <a 
+              href="https://health-hub-links.vercel.app" 
+              className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all font-bold text-sm"
+              title="Back to Health Hub Home"
+            >
+              <Home className="w-4 h-4" />
+              <span className="hidden sm:inline">Home</span>
+            </a>
+
             <div className="hidden sm:flex items-center gap-3 mr-2">
               <div className="text-right">
                 <p className="text-sm font-medium text-slate-900 truncate max-w-[120px] md:max-w-[200px]">{user?.name}</p>
