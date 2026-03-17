@@ -28,7 +28,10 @@ export default function HealthEvents() {
     Date: getThaiDateString(),
     Type: 'Illness',
     Description: '',
-    Notes: ''
+    Notes: '',
+    Severity: 'ปานกลาง',
+    Status: 'ยังมีอาการค้างอยู่',
+    RelatedMedications: ''
   };
 
   const [newEvent, setNewEvent] = useState(defaultEvent);
@@ -128,7 +131,10 @@ export default function HealthEvents() {
       Date: event.Date || '',
       Type: event.Type || 'Illness',
       Description: event.Description || '',
-      Notes: event.Notes || ''
+      Notes: event.Notes || '',
+      Severity: event.Severity || 'ปานกลาง',
+      Status: event.Status || 'ยังมีอาการค้างอยู่',
+      RelatedMedications: event.RelatedMedications || ''
     });
     setConfirmDelete(null);
     setIsModalOpen(true);
@@ -208,6 +214,9 @@ export default function HealthEvents() {
         - Type: Categorize the event into one of these exact strings: "Illness", "Symptom", "Diagnosis", "Surgery/Procedure", "Other". (For imaging like MRI/X-Ray, use "Diagnosis" or "Other").
         - Description: A short, concise title for the event (e.g., "MRI Brain Results", "Chest X-Ray", "Doctor's Appointment").
         - Notes: A detailed summary or translation of the findings, impressions, or doctor's notes. Translate complex medical terms into easy-to-understand Thai if possible.
+        - Severity: Rate the severity as "น้อย", "ปานกลาง", or "มาก". If not explicitly stated, infer from context or default to "ปานกลาง".
+        - Status: The current status of the event. Use "หายดีแล้ว" if resolved, or "ยังมีอาการค้างอยู่" if ongoing. Default to "ยังมีอาการค้างอยู่".
+        - RelatedMedications: A comma-separated list of any medications mentioned in relation to this event. If none, leave empty.
         
         Return ONLY the JSON object. Do not include markdown formatting like \`\`\`json.
       `;
@@ -220,7 +229,10 @@ export default function HealthEvents() {
         Date: data.Date || prev.Date,
         Type: data.Type || prev.Type,
         Description: data.Description || prev.Description,
-        Notes: data.Notes || prev.Notes
+        Notes: data.Notes || prev.Notes,
+        Severity: data.Severity || prev.Severity,
+        Status: data.Status || prev.Status,
+        RelatedMedications: data.RelatedMedications || prev.RelatedMedications
       }));
       
       // Log usage to backend (Removed for frontend-only)
@@ -397,6 +409,43 @@ export default function HealthEvents() {
                     placeholder="e.g., เปลี่ยนข้อเข่าเทียม, ติดโควิด, หน้ามืดเวียนหัว"
                   />
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Severity (ความรุนแรง)</label>
+                  <select 
+                    value={newEvent.Severity}
+                    onChange={e => setNewEvent({...newEvent, Severity: e.target.value})}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  >
+                    <option value="น้อย">น้อย (Mild)</option>
+                    <option value="ปานกลาง">ปานกลาง (Moderate)</option>
+                    <option value="มาก">มาก (Severe)</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Status (สถานะ)</label>
+                  <select 
+                    value={newEvent.Status}
+                    onChange={e => setNewEvent({...newEvent, Status: e.target.value})}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  >
+                    <option value="หายดีแล้ว">หายดีแล้ว (Resolved)</option>
+                    <option value="ยังมีอาการค้างอยู่">ยังมีอาการค้างอยู่ (Ongoing)</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Related Medications (ยาที่เกี่ยวข้อง)</label>
+                  <input 
+                    type="text" 
+                    value={newEvent.RelatedMedications}
+                    onChange={e => setNewEvent({...newEvent, RelatedMedications: e.target.value})}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="e.g., Paracetamol, Amoxicillin (ระบุชื่อยาที่ใช้รักษาอาการนี้)"
+                  />
+                </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Additional Notes</label>
                   <textarea 
@@ -571,11 +620,35 @@ export default function HealthEvents() {
                           </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
                         <span className={clsx("text-xs font-medium px-2 py-0.5 rounded-md", typeConfig.bg, typeConfig.color)}>
                           <Highlight text={event.Type} query={searchQuery} />
                         </span>
+                        {event.Severity && (
+                          <span className={clsx(
+                            "text-xs font-medium px-2 py-0.5 rounded-md border",
+                            event.Severity === 'มาก' ? "bg-rose-50 text-rose-700 border-rose-200" :
+                            event.Severity === 'ปานกลาง' ? "bg-amber-50 text-amber-700 border-amber-200" :
+                            "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          )}>
+                            ความรุนแรง: {event.Severity}
+                          </span>
+                        )}
+                        {event.Status && (
+                          <span className={clsx(
+                            "text-xs font-medium px-2 py-0.5 rounded-md border",
+                            event.Status === 'หายดีแล้ว' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-blue-50 text-blue-700 border-blue-200"
+                          )}>
+                            สถานะ: {event.Status}
+                          </span>
+                        )}
                       </div>
+                      {event.RelatedMedications && (
+                        <div className="text-sm text-slate-600 mb-3 flex items-start gap-2">
+                          <span className="font-medium text-slate-700 whitespace-nowrap">ยาที่เกี่ยวข้อง:</span>
+                          <span className="flex-1">{event.RelatedMedications}</span>
+                        </div>
+                      )}
                       {event.Notes && (
                         <p className="text-slate-600 text-sm whitespace-pre-wrap mt-3 pt-3 border-t border-slate-200/60">
                           <Highlight text={event.Notes} query={searchQuery} />
