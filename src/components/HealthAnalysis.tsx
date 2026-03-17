@@ -16,8 +16,8 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
     // Helper to calculate precise age in years
     const getAgeInYears = () => {
-      if (!profile?.BirthDate) return null;
-      const birthDate = new Date(profile.BirthDate);
+      if (!profile?.birthDate) return null;
+      const birthDate = new Date(profile.birthDate);
       if (isNaN(birthDate.getTime())) return null;
       const today = new Date(getThaiDateString());
       let age = today.getFullYear() - birthDate.getFullYear();
@@ -29,8 +29,8 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
     };
 
     const age = getAgeInYears();
-    const isMale = profile?.Gender === 'Male';
-    const isFemale = profile?.Gender === 'Female';
+    const isMale = profile?.gender === 'Male';
+    const isFemale = profile?.gender === 'Female';
 
     // 1. BMI Analysis
     const latestVitals = vitals.length > 0 ? vitals[vitals.length - 1] : null;
