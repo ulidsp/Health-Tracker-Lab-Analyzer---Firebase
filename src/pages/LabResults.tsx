@@ -18,7 +18,7 @@ export default function LabResults() {
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
   const [selectedDate, setSelectedDate] = useState(getThaiDateString());
   const [selectedNotes, setSelectedNotes] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -81,7 +81,7 @@ export default function LabResults() {
         Analyze this lab result image. Extract the data into a JSON array of objects.
         IMPORTANT: This image is a phone screenshot. Please IGNORE all phone UI elements at the top or bottom of the screen (such as time, battery percentage, wifi/cellular signal, navigation bars, app headers, etc.). Focus STRICTLY on extracting the medical laboratory test results from the main content area.
         Each object should represent one test result and have the following keys:
-        - testName: The name of the test. Normalize common abbreviations (e.g., "FBS" to "Fasting Blood Sugar", "Chol" to "Cholesterol", "TG" to "Triglycerides", "HDL-C" to "HDL Cholesterol", "LDL-C" to "LDL Cholesterol").
+        - testName: The name of the test EXACTLY as it appears in the image. DO NOT normalize, translate, or expand abbreviations. If it says "FBS", keep it as "FBS". If it says "Chol", keep it as "Chol". This is critical for data matching.
         - value: The numerical value or result.
         - unit: The unit of measurement (if available).
         - referenceRange: The normal or reference range (if available).
@@ -316,16 +316,16 @@ export default function LabResults() {
                     disabled={uploading || saving}
                     className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
                   >
-<option value="gemini-3-flash-preview">(20)Gemini 3 Flash Preview</option>
-<option value="gemini-3.1-pro-preview">(0)Gemini 3.1 Pro Preview</option>
-<option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
-<option value="gemini-3.1-flash-lite-preview">(500)Gemini 3.1 Flash Lite Preview</option>
-<option value="gemini-flash-latest">Gemini Flash Latest</option>
-<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">(20)Gemini 2.5 Flash</option>
-<option value="gemini-2.5-flash-lite">(20)Gemini 2.5 Flash Lite</option>
-<option value="gemini-2.5-pro">(0)Gemini 2.5 Pro</option>
-<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
+<option value="gemini-3.1-pro-preview">(0) Gemini 3.1 Pro Preview (ฉลาดที่ 1)</option>
+<option value="gemini-3-pro-preview">(0) Gemini 3.0 Pro Preview (ฉลาดที่ 2)</option>
+<option value="gemini-2.5-pro">(0) Gemini 2.5 Pro (ฉลาดที่ 3)</option>
+<option value="gemini-pro-latest">(0) Gemini Pro (Latest Stable) (ฉลาดที่ 4)</option>
+<option value="gemini-3-flash-preview">(20) Gemini 3 Flash Preview (ฉลาดที่ 5)</option>
+<option value="gemini-3.1-flash-lite-preview">(500) Gemini 3.1 Flash Lite Preview (ฉลาดที่ 6) (Default)</option>
+<option value="gemini-flash-latest">(20) Gemini Flash Latest (ฉลาดที่ 7)</option>
+<option value="gemini-2.5-flash">(20) Gemini 2.5 Flash (ฉลาดที่ 8)</option>
+<option value="gemini-flash-lite-latest">(500) Gemini Flash Lite Latest (ฉลาดที่ 9)</option>
+<option value="gemini-2.5-flash-lite">(20) Gemini 2.5 Flash Lite (ฉลาดที่ 10)</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-2">

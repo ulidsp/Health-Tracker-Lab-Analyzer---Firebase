@@ -15,7 +15,7 @@ export default function FamilyHistory() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   
@@ -280,8 +280,16 @@ export default function FamilyHistory() {
                     className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
                     disabled={uploading}
                   >
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (เร็ว)</option>
-                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (แม่นยำ)</option>
+                    <option value="gemini-3.1-pro-preview">(0) Gemini 3.1 Pro Preview (ฉลาดที่ 1)</option>
+                    <option value="gemini-3-pro-preview">(0) Gemini 3.0 Pro Preview (ฉลาดที่ 2)</option>
+                    <option value="gemini-2.5-pro">(0) Gemini 2.5 Pro (ฉลาดที่ 3)</option>
+                    <option value="gemini-pro-latest">(0) Gemini Pro (Latest Stable) (ฉลาดที่ 4)</option>
+                    <option value="gemini-3-flash-preview">(20) Gemini 3 Flash Preview (ฉลาดที่ 5)</option>
+                    <option value="gemini-3.1-flash-lite-preview">(500) Gemini 3.1 Flash Lite Preview (ฉลาดที่ 6) (Default)</option>
+                    <option value="gemini-flash-latest">(20) Gemini Flash Latest (ฉลาดที่ 7)</option>
+                    <option value="gemini-2.5-flash">(20) Gemini 2.5 Flash (ฉลาดที่ 8)</option>
+                    <option value="gemini-flash-lite-latest">(500) Gemini Flash Lite Latest (ฉลาดที่ 9)</option>
+                    <option value="gemini-2.5-flash-lite">(20) Gemini 2.5 Flash Lite (ฉลาดที่ 10)</option>
                   </select>
                   <div className="relative flex-1">
                     <input

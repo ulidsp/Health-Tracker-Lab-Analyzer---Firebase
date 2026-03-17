@@ -40,7 +40,14 @@ export const analyzeImage = async (file: File, prompt: string, model: string = '
     throw new Error('No text returned from Gemini');
   }
 
-  return JSON.parse(text);
+  // Clean up the text to extract only the JSON array, ignoring markdown or conversational text
+  let cleanedText = text.trim();
+  const arrayMatch = cleanedText.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    cleanedText = arrayMatch[0];
+  }
+
+  return JSON.parse(cleanedText);
 };
 
 export const extractTextFromImage = async (file: File, prompt: string, model: string = 'gemini-3-flash-preview') => {
