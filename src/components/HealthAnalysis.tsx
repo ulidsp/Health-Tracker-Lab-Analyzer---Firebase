@@ -78,6 +78,40 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       });
     }
 
+    // 1.5 Waist Circumference Analysis
+    if (latestVitals && latestVitals.Waist) {
+      const waist = parseFloat(latestVitals.Waist);
+      let status = '';
+      let color = '';
+      let icon = Scale;
+      let advice = '';
+
+      // Using Asian criteria for abdominal obesity (in inches)
+      // Male >= 36 inches (90cm), Female >= 32 inches (80cm)
+      const limit = isMale ? 36 : (isFemale ? 32 : 34); // Default to 34 if gender not specified
+
+      if (waist < limit) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'รอบเอวอยู่ในเกณฑ์มาตรฐาน ความเสี่ยงโรคอ้วนลงพุงต่ำ';
+      } else {
+        status = 'อ้วนลงพุง (Abdominal Obesity)';
+        color = 'text-orange-600 bg-orange-50 border-orange-200';
+        advice = 'มีความเสี่ยงต่อโรคหัวใจและเบาหวาน ควรลดไขมันหน้าท้องด้วยการคุมอาหารและออกกำลังกาย';
+      }
+
+      results.push({
+        category: 'รอบเอว (Waist)',
+        date: latestVitals.Date,
+        value: waist.toFixed(1),
+        unit: 'นิ้ว',
+        status,
+        color,
+        icon,
+        advice
+      });
+    }
+
     // Helper to get latest lab value
     const getLatestLab = (testNames: string[], excludeNames: string[] = []) => {
       const matchedLabs = labs.filter(l => {
