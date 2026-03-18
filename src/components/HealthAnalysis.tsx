@@ -80,7 +80,8 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
     // 1.5 Waist Circumference Analysis
     if (latestVitals && latestVitals.Waist) {
-      const waist = parseFloat(latestVitals.Waist);
+      const waistInches = parseFloat(latestVitals.Waist);
+      const waistCm = waistInches * 2.54;
       let status = '';
       let color = '';
       let icon = Scale;
@@ -88,22 +89,45 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       // Using Asian criteria for abdominal obesity (in inches)
       // Male >= 36 inches (90cm), Female >= 32 inches (80cm)
-      const limit = isMale ? 36 : (isFemale ? 32 : 34); // Default to 34 if gender not specified
+      const limitInches = isMale ? 36 : (isFemale ? 32 : 34); // Default to 34 if gender not specified
+      const isAbdominalObese = waistInches >= limitInches;
 
-      if (waist < limit) {
+      // Waist-to-Height Ratio (WHtR)
+      let whtr = null;
+      let isWhtrHigh = false;
+      if (latestVitals.Height) {
+        const heightCm = parseFloat(latestVitals.Height);
+        if (heightCm > 0) {
+          whtr = waistCm / heightCm;
+          isWhtrHigh = whtr >= 0.5;
+        }
+      }
+
+      const genderText = isMale ? 'ชาย < 36 นิ้ว' : (isFemale ? 'หญิง < 32 นิ้ว' : 'ชาย < 36 นิ้ว, หญิง < 32 นิ้ว');
+      const criteriaText = `(เกณฑ์คนเอเชีย: ${genderText}${whtr ? ' และรอบเอวไม่ควรเกินครึ่งหนึ่งของส่วนสูง' : ''})`;
+
+      if (!isAbdominalObese && !isWhtrHigh) {
         status = 'ปกติ (Normal)';
         color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
-        advice = 'รอบเอวอยู่ในเกณฑ์มาตรฐาน ความเสี่ยงโรคอ้วนลงพุงต่ำ';
+        advice = `รอบเอวอยู่ในเกณฑ์มาตรฐาน ความเสี่ยงโรคอ้วนลงพุงต่ำ ${criteriaText}`;
+        if (whtr) {
+          advice += ` สัดส่วนรอบเอวต่อส่วนสูง (WHtR) ของคุณคือ ${whtr.toFixed(2)} (เกณฑ์ดีคือ < 0.50)`;
+        }
       } else {
         status = 'อ้วนลงพุง (Abdominal Obesity)';
         color = 'text-orange-600 bg-orange-50 border-orange-200';
-        advice = 'มีความเสี่ยงต่อโรคหัวใจและเบาหวาน ควรลดไขมันหน้าท้องด้วยการคุมอาหารและออกกำลังกาย';
+        advice = `มีความเสี่ยงต่อโรคหัวใจและเบาหวาน ควรลดไขมันหน้าท้องด้วยการคุมอาหารและออกกำลังกาย ${criteriaText}`;
+        if (whtr && isWhtrHigh) {
+          advice += ` สัดส่วนรอบเอวต่อส่วนสูง (WHtR) ของคุณคือ ${whtr.toFixed(2)} ซึ่งเกินเกณฑ์ 0.50 (รอบเอวใหญ่กว่าครึ่งหนึ่งของส่วนสูง)`;
+        } else if (isAbdominalObese) {
+          advice += ` รอบเอวของคุณ (${waistInches.toFixed(1)} นิ้ว) เกินเกณฑ์มาตรฐาน`;
+        }
       }
 
       results.push({
         category: 'รอบเอว (Waist)',
         date: latestVitals.Date,
-        value: waist.toFixed(1),
+        value: waistInches.toFixed(1),
         unit: 'นิ้ว',
         status,
         color,
