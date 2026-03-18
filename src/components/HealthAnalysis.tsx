@@ -9,9 +9,10 @@ interface HealthAnalysisProps {
   labs: any[];
   profile: any;
   healthEvents?: any[];
+  medications?: any[];
 }
 
-export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [] }: HealthAnalysisProps) {
+export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [], medications = [] }: HealthAnalysisProps) {
   const analysis = useMemo(() => {
     const results: any[] = [];
 
@@ -1202,8 +1203,30 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
                             (fbs && fbs.parsedValue >= 126) || 
                             (hba1c && hba1c.parsedValue >= 6.5);
                             
-        // Check for hypertension treatment
-        const isTreatedForHTN = healthEvents.some(e => e.Type === 'Illness' && (e.Description.includes('ความดัน') || e.Description.toLowerCase().includes('hypertension')) && e.RelatedMedications && e.RelatedMedications.trim() !== '');
+        // Helper to check if a medication is for hypertension
+        const isHTNMedication = (med: any) => {
+          if (!med) return false;
+          const purpose = (med.Purpose || '').toLowerCase();
+          const name = (med.MedicationName || '').toLowerCase();
+          
+          // Check purpose
+          if (purpose.includes('ความดัน') || purpose.includes('hypertension') || purpose.includes('blood pressure') || purpose.includes('htn')) {
+            return true;
+          }
+          
+          // Check common drug name suffixes and specific drugs
+          const htnSuffixes = ['pril', 'sartan', 'olol', 'alol', 'ilol', 'dipine', 'zosin', 'thiazide'];
+          const htnDrugs = ['diltiazem', 'verapamil', 'chlorthalidone', 'indapamide', 'furosemide', 'spironolactone', 'clonidine', 'methyldopa', 'hydralazine', 'minoxidil', 'amiloride', 'bumetanide', 'torsemide', 'triamterene'];
+          
+          if (htnSuffixes.some(suffix => name.endsWith(suffix) || name.includes(suffix + ' '))) return true;
+          if (htnDrugs.some(drug => name.includes(drug))) return true;
+          
+          return false;
+        };
+
+        // Check for hypertension treatment from Health Events OR Medications
+        const isTreatedForHTN = healthEvents.some(e => e.Type === 'Illness' && (e.Description.includes('ความดัน') || e.Description.toLowerCase().includes('hypertension')) && e.RelatedMedications && e.RelatedMedications.trim() !== '') ||
+                                medications.some(med => isHTNMedication(med) && (!med.EndDate || new Date(med.EndDate) >= new Date()));
 
         let risk = 0;
         
@@ -1420,7 +1443,7 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
       ...r,
       criteria: criteriaMap[r.category] || []
     }));
-  }, [vitals, labs, profile, healthEvents]);
+  }, [vitals, labs, profile, healthEvents, medications]);
 
   if (analysis.length === 0) {
     return null;
