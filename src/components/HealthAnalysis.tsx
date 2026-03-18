@@ -574,8 +574,21 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
         const hdlVal = hdl.parsedValue;
 
         // Criteria checks
+        let isWaistHigh = false;
         const waistLimit = isMale ? 36 : (isFemale ? 32 : 34);
-        const isWaistHigh = waistInches >= waistLimit;
+        
+        if (latestVitals.Height) {
+          const heightCm = parseFloat(latestVitals.Height);
+          if (heightCm > 0) {
+            const waistCm = waistInches * 2.54;
+            isWaistHigh = waistCm >= (heightCm / 2);
+          } else {
+            isWaistHigh = waistInches >= waistLimit;
+          }
+        } else {
+          isWaistHigh = waistInches >= waistLimit;
+        }
+
         const isBpHigh = sys >= 130 || dia >= 85;
         const isFbsHigh = fbsVal >= 100;
         const isTgHigh = tgVal >= 150;
@@ -1235,7 +1248,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       ],
       'ระบบเผาผลาญ (Metabolic Syndrome)': [
         'เกณฑ์ 5 ข้อ (ผิดปกติ >= 3 ข้อ ถือว่าพบภาวะ):',
-        '1. รอบเอว: ชาย >= 36 นิ้ว, หญิง >= 32 นิ้ว',
+        '1. รอบเอว: >= ครึ่งหนึ่งของส่วนสูง (หรือ ชาย >= 36 นิ้ว, หญิง >= 32 นิ้ว)',
         '2. ความดัน: >= 130/85 mmHg',
         '3. น้ำตาล (FBS): >= 100 mg/dL',
         '4. ไตรกลีเซอไรด์: >= 150 mg/dL',
