@@ -95,28 +95,43 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       // Waist-to-Height Ratio (WHtR)
       let whtr = null;
       let isWhtrHigh = false;
+      let targetWaistByHeightInches = null;
+      let recommendedMaxWaistInches = limitInches;
+
       if (latestVitals.Height) {
         const heightCm = parseFloat(latestVitals.Height);
         if (heightCm > 0) {
           whtr = waistCm / heightCm;
           isWhtrHigh = whtr >= 0.5;
+          targetWaistByHeightInches = (heightCm / 2) / 2.54;
+          // Use the stricter of the two limits
+          recommendedMaxWaistInches = Math.min(limitInches, targetWaistByHeightInches);
         }
       }
+
+      const diffToMax = waistInches - recommendedMaxWaistInches;
 
       const genderText = isMale ? 'ชาย < 36 นิ้ว' : (isFemale ? 'หญิง < 32 นิ้ว' : 'ชาย < 36 นิ้ว, หญิง < 32 นิ้ว');
       const criteriaText = `(เกณฑ์คนเอเชีย: ${genderText}${whtr ? ' และรอบเอวไม่ควรเกินครึ่งหนึ่งของส่วนสูง' : ''})`;
 
+      let targetText = `รอบเอวสูงสุดที่แนะนำของคุณคือไม่ควรเกิน ${recommendedMaxWaistInches.toFixed(1)} นิ้ว`;
+      if (diffToMax > 0) {
+        targetText += ` (ควรลดลงอีกอย่างน้อย ${diffToMax.toFixed(1)} นิ้ว)`;
+      } else {
+        targetText += ` (ปัจจุบันคุณต่ำกว่าเกณฑ์อยู่ ${Math.abs(diffToMax).toFixed(1)} นิ้ว ทำได้ดีมาก!)`;
+      }
+
       if (!isAbdominalObese && !isWhtrHigh) {
         status = 'ปกติ (Normal)';
         color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
-        advice = `รอบเอวอยู่ในเกณฑ์มาตรฐาน ความเสี่ยงโรคอ้วนลงพุงต่ำ ${criteriaText}`;
+        advice = `รอบเอวอยู่ในเกณฑ์มาตรฐาน ความเสี่ยงโรคอ้วนลงพุงต่ำ ${criteriaText} ${targetText}`;
         if (whtr) {
           advice += ` สัดส่วนรอบเอวต่อส่วนสูง (WHtR) ของคุณคือ ${whtr.toFixed(2)} (เกณฑ์ดีคือ < 0.50)`;
         }
       } else {
         status = 'อ้วนลงพุง (Abdominal Obesity)';
         color = 'text-orange-600 bg-orange-50 border-orange-200';
-        advice = `มีความเสี่ยงต่อโรคหัวใจและเบาหวาน ควรลดไขมันหน้าท้องด้วยการคุมอาหารและออกกำลังกาย ${criteriaText}`;
+        advice = `มีความเสี่ยงต่อโรคหัวใจและเบาหวาน ควรลดไขมันหน้าท้องด้วยการคุมอาหารและออกกำลังกาย ${criteriaText} ${targetText}`;
         if (whtr && isWhtrHigh) {
           advice += ` สัดส่วนรอบเอวต่อส่วนสูง (WHtR) ของคุณคือ ${whtr.toFixed(2)} ซึ่งเกินเกณฑ์ 0.50 (รอบเอวใหญ่กว่าครึ่งหนึ่งของส่วนสูง)`;
         } else if (isAbdominalObese) {
