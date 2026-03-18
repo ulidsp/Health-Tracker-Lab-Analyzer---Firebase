@@ -71,6 +71,20 @@ export default function Dashboard() {
   .filter(v => v.systolic && v.diastolic)
   .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+  const spo2Data = filteredVitals.map((v: any) => ({
+    date: v.Date,
+    spo2: v.SpO2 ? parseFloat(v.SpO2) : undefined
+  }))
+  .filter(v => v.spo2 !== undefined)
+  .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const tempData = filteredVitals.map((v: any) => ({
+    date: v.Date,
+    temperature: v.Temperature ? parseFloat(v.Temperature) : undefined
+  }))
+  .filter(v => v.temperature !== undefined)
+  .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
   // Helper for Age
   const getAgeInYears = () => {
     if (!activeProfile?.birthDate) return null;
@@ -377,6 +391,24 @@ export default function Dashboard() {
             { key: 'diastolic', color: '#3b82f6', name: 'ตัวล่าง (Diastolic)' }
           ]}
           interpretation="ตัวบนควร < 120 และตัวล่างควร < 80 mmHg หากเกิน 140/90 ถือว่ามีความดันโลหิตสูง ควรควบคุมอาหารเค็มและออกกำลังกาย"
+        />
+
+        <ChartCard 
+          title="ระดับออกซิเจนในเลือด (SpO2)" 
+          data={spo2Data} 
+          lines={[
+            { key: 'spo2', color: '#0ea5e9', name: 'SpO2 (%)' }
+          ]}
+          interpretation="ค่าปกติควรอยู่ระหว่าง 95% - 100% หากต่ำกว่า 95% อาจมีภาวะพร่องออกซิเจน ควรปรึกษาแพทย์"
+        />
+
+        <ChartCard 
+          title="อุณหภูมิร่างกาย (Body Temperature)" 
+          data={tempData} 
+          lines={[
+            { key: 'temperature', color: '#f59e0b', name: 'Temperature (°C)' }
+          ]}
+          interpretation="อุณหภูมิปกติของร่างกายอยู่ระหว่าง 36.5°C - 37.2°C หากสูงกว่า 37.5°C ถือว่ามีไข้"
         />
 
         <ChartCard 

@@ -26,6 +26,8 @@ export default function Vitals() {
     Systolic: '',
     Diastolic: '',
     HeartRate: '',
+    SpO2: '',
+    Temperature: '',
     Notes: ''
   };
 
@@ -125,6 +127,8 @@ export default function Vitals() {
       Systolic: record.Systolic || '',
       Diastolic: record.Diastolic || '',
       HeartRate: record.HeartRate || '',
+      SpO2: record.SpO2 || '',
+      Temperature: record.Temperature || '',
       Notes: record.Notes || ''
     });
     setConfirmDelete(null);
@@ -338,6 +342,31 @@ export default function Vitals() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">SpO2 (%) / ออกซิเจนในเลือด</label>
+                  <input 
+                    type="number" 
+                    name="SpO2"
+                    value={formData.SpO2}
+                    onChange={handleChange}
+                    placeholder="e.g. 98"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Temperature (°C) / อุณหภูมิ</label>
+                  <input 
+                    type="number" 
+                    step="0.1"
+                    name="Temperature"
+                    value={formData.Temperature}
+                    onChange={handleChange}
+                    placeholder="e.g. 36.5"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-2">หมายเหตุ (Notes)</label>
                   <input 
@@ -477,6 +506,8 @@ export default function Vitals() {
                 <th className="px-6 py-4">Waist</th>
                 <th className="px-6 py-4">Blood Pressure</th>
                 <th className="px-6 py-4">Heart Rate</th>
+                <th className="px-6 py-4">SpO2</th>
+                <th className="px-6 py-4">Temp</th>
                 <th className="px-6 py-4">Notes</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
@@ -484,11 +515,11 @@ export default function Vitals() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
+                  <td colSpan={10} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
                 </tr>
               ) : filteredVitals.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-400">No records found.</td>
+                  <td colSpan={10} className="px-6 py-8 text-center text-slate-400">No records found.</td>
                 </tr>
               ) : (
                 filteredVitals.map((v: any, i) => (
@@ -508,6 +539,8 @@ export default function Vitals() {
                       ) : '-'}
                     </td>
                     <td className="px-6 py-4">{v.HeartRate ? `${v.HeartRate} bpm` : '-'}</td>
+                    <td className="px-6 py-4">{v.SpO2 ? `${v.SpO2}%` : '-'}</td>
+                    <td className="px-6 py-4">{v.Temperature ? `${v.Temperature}°C` : '-'}</td>
                     <td className="px-6 py-4 text-slate-500 text-sm max-w-xs truncate" title={v.Notes}>
                       <Highlight text={v.Notes || ''} query={searchQuery} />
                     </td>

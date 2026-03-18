@@ -151,6 +151,78 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       });
     }
 
+    // 1.6 SpO2 Analysis
+    if (latestVitals && latestVitals.SpO2) {
+      const spo2 = parseFloat(latestVitals.SpO2);
+      let status = '';
+      let color = '';
+      let icon = Activity;
+      let advice = '';
+
+      if (spo2 >= 95) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ระดับออกซิเจนในเลือดอยู่ในเกณฑ์ดีเยี่ยม ปอดและหัวใจทำงานได้ดี';
+      } else if (spo2 >= 90) {
+        status = 'ต่ำกว่าเกณฑ์ (Low)';
+        color = 'text-amber-600 bg-amber-50 border-amber-200';
+        advice = 'ระดับออกซิเจนในเลือดค่อนข้างต่ำ ควรสังเกตอาการหายใจลำบากหรือเหนื่อยง่าย';
+      } else {
+        status = 'ต่ำมาก (Very Low)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ระดับออกซิเจนในเลือดต่ำมาก ควรรีบพบแพทย์ทันที';
+      }
+
+      results.push({
+        category: 'ออกซิเจนในเลือด (SpO2)',
+        date: latestVitals.Date,
+        value: spo2.toFixed(0),
+        unit: '%',
+        status,
+        color,
+        icon,
+        advice
+      });
+    }
+
+    // 1.7 Temperature Analysis
+    if (latestVitals && latestVitals.Temperature) {
+      const temp = parseFloat(latestVitals.Temperature);
+      let status = '';
+      let color = '';
+      let icon = Activity;
+      let advice = '';
+
+      if (temp < 36.0) {
+        status = 'อุณหภูมิต่ำ (Hypothermia)';
+        color = 'text-blue-600 bg-blue-50 border-blue-200';
+        advice = 'อุณหภูมิร่างกายต่ำกว่าปกติ ควรทำร่างกายให้อบอุ่น';
+      } else if (temp <= 37.5) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'อุณหภูมิร่างกายอยู่ในเกณฑ์ปกติ ไม่มีไข้';
+      } else if (temp <= 38.0) {
+        status = 'มีไข้ต่ำ (Low-grade Fever)';
+        color = 'text-amber-600 bg-amber-50 border-amber-200';
+        advice = 'มีไข้ต่ำๆ ควรพักผ่อนให้เพียงพอ ดื่มน้ำมากๆ และเช็ดตัวลดไข้';
+      } else {
+        status = 'มีไข้สูง (High Fever)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'มีไข้สูง ควรรับประทานยาลดไข้ เช็ดตัว และหากไข้ไม่ลดควรรีบพบแพทย์';
+      }
+
+      results.push({
+        category: 'อุณหภูมิร่างกาย (Temp)',
+        date: latestVitals.Date,
+        value: temp.toFixed(1),
+        unit: '°C',
+        status,
+        color,
+        icon,
+        advice
+      });
+    }
+
     // Helper to get latest lab value
     const getLatestLab = (testNames: string[], excludeNames: string[] = []) => {
       const matchedLabs = labs.filter(l => {
@@ -485,6 +557,62 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
         icon: Heart,
         advice
       });
+    }
+
+    // Metabolic Syndrome Analysis
+    if (latestVitals && latestVitals.Waist && latestVitals.Systolic && latestVitals.Diastolic) {
+      const fbs = getLatestLab(['FBS', 'Fasting Blood Sugar', 'Glucose']);
+      const tg = getLatestLab(['Triglyceride', 'Triglycerides']);
+      const hdl = getLatestLab(['HDL', 'High Density Lipoprotein']);
+
+      if (fbs && tg && hdl) {
+        const waistInches = parseFloat(latestVitals.Waist);
+        const sys = parseFloat(latestVitals.Systolic);
+        const dia = parseFloat(latestVitals.Diastolic);
+        const fbsVal = fbs.parsedValue;
+        const tgVal = tg.parsedValue;
+        const hdlVal = hdl.parsedValue;
+
+        // Criteria checks
+        const waistLimit = isMale ? 36 : (isFemale ? 32 : 34);
+        const isWaistHigh = waistInches >= waistLimit;
+        const isBpHigh = sys >= 130 || dia >= 85;
+        const isFbsHigh = fbsVal >= 100;
+        const isTgHigh = tgVal >= 150;
+        const hdlLimit = isMale ? 40 : (isFemale ? 50 : 45);
+        const isHdlLow = hdlVal < hdlLimit;
+
+        const criteriaMet = [isWaistHigh, isBpHigh, isFbsHigh, isTgHigh, isHdlLow].filter(Boolean).length;
+
+        let status = '';
+        let color = '';
+        let advice = '';
+
+        if (criteriaMet >= 3) {
+          status = 'พบภาวะ (Metabolic Syndrome)';
+          color = 'text-rose-600 bg-rose-50 border-rose-200';
+          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ เข้าข่ายกลุ่มอาการระบบเผาผลาญผิดปกติ เสี่ยงต่อโรคหัวใจและเบาหวานสูงมาก ควรพบแพทย์เพื่อวางแผนการรักษา`;
+        } else if (criteriaMet > 0) {
+          status = 'เริ่มมีความเสี่ยง (At Risk)';
+          color = 'text-amber-600 bg-amber-50 border-amber-200';
+          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ ควรปรับเปลี่ยนพฤติกรรมเพื่อป้องกันภาวะระบบเผาผลาญผิดปกติ`;
+        } else {
+          status = 'ปกติ (Normal)';
+          color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+          advice = 'ไม่พบความเสี่ยงกลุ่มอาการระบบเผาผลาญผิดปกติ ระบบเผาผลาญทำงานได้ดีเยี่ยม';
+        }
+
+        results.push({
+          category: 'ระบบเผาผลาญ (Metabolic Syndrome)',
+          date: latestVitals.Date,
+          value: `${criteriaMet}/5`,
+          unit: 'ข้อ',
+          status,
+          color,
+          icon: Activity,
+          advice
+        });
+      }
     }
 
     // Inflammation Markers
@@ -1048,6 +1176,11 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
         '25.0 - 29.9 : อ้วนระดับ 1 (Obese Class I)',
         '>= 30.0 : อ้วนระดับ 2 (Obese Class II)'
       ],
+      'รอบเอว (Waist)': [
+        isMale ? '< 36 นิ้ว : ปกติ (Normal)' : (isFemale ? '< 32 นิ้ว : ปกติ (Normal)' : '< 36 นิ้ว (ชาย), < 32 นิ้ว (หญิง) : ปกติ (Normal)'),
+        isMale ? '>= 36 นิ้ว : อ้วนลงพุง (Abdominal Obesity)' : (isFemale ? '>= 32 นิ้ว : อ้วนลงพุง (Abdominal Obesity)' : '>= 36 นิ้ว (ชาย), >= 32 นิ้ว (หญิง) : อ้วนลงพุง (Abdominal Obesity)'),
+        'สัดส่วนรอบเอวต่อส่วนสูง (WHtR) ควร < 0.50'
+      ],
       'น้ำตาลในเลือด (FBS)': [
         '< 100 : ปกติ (Normal)',
         '100 - 125 : เสี่ยงเบาหวาน (Prediabetes)',
@@ -1069,6 +1202,17 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
         isFemale ? '>= 50 : ปกติ (Normal)' : '>= 40 : ปกติ (Normal)',
         '>= 60 : ดีมาก (Optimal)'
       ],
+      'ออกซิเจนในเลือด (SpO2)': [
+        '>= 95 : ปกติ (Normal)',
+        '90 - 94 : ต่ำกว่าเกณฑ์ (Low)',
+        '< 90 : ต่ำมาก (Very Low)'
+      ],
+      'อุณหภูมิร่างกาย (Temp)': [
+        '< 36.0 : อุณหภูมิต่ำ (Hypothermia)',
+        '36.0 - 37.5 : ปกติ (Normal)',
+        '37.6 - 38.0 : มีไข้ต่ำ (Low-grade Fever)',
+        '> 38.0 : มีไข้สูง (High Fever)'
+      ],
       'ไตรกลีเซอไรด์ (Triglyceride)': [
         '< 150 : ปกติ (Normal)',
         '150 - 199 : ค่อนข้างสูง (Borderline High)',
@@ -1088,6 +1232,14 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
         '< 2.0 : ปกติ (Normal)',
         '2.0 - 2.9 : เริ่มเสี่ยง (Borderline)',
         '>= 3.0 : ดื้ออินซูลิน (Insulin Resistance)'
+      ],
+      'ระบบเผาผลาญ (Metabolic Syndrome)': [
+        'เกณฑ์ 5 ข้อ (ผิดปกติ >= 3 ข้อ ถือว่าพบภาวะ):',
+        '1. รอบเอว: ชาย >= 36 นิ้ว, หญิง >= 32 นิ้ว',
+        '2. ความดัน: >= 130/85 mmHg',
+        '3. น้ำตาล (FBS): >= 100 mg/dL',
+        '4. ไตรกลีเซอไรด์: >= 150 mg/dL',
+        '5. HDL: ชาย < 40, หญิง < 50 mg/dL'
       ],
       'การอักเสบ (hs-CRP)': [
         '< 1.0 : ความเสี่ยงต่ำ (Low Risk)',
