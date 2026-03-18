@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CalendarHeart, Plus, Save, X, Activity, Stethoscope, Syringe, AlertTriangle, Upload, Image as ImageIcon, Loader2, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, Users } from 'lucide-react';
+import { CalendarHeart, Plus, Save, X, Activity, Stethoscope, Syringe, AlertTriangle, Upload, Image as ImageIcon, Loader2, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, Users, Wine, Cigarette } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
@@ -31,7 +31,11 @@ export default function HealthEvents() {
     Notes: '',
     Severity: 'ปานกลาง',
     Status: 'ยังมีอาการค้างอยู่',
-    RelatedMedications: ''
+    RelatedMedications: '',
+    EndDate: '',
+    IsActive: 'Yes',
+    Frequency: '',
+    Quantity: ''
   };
 
   const [newEvent, setNewEvent] = useState(defaultEvent);
@@ -47,6 +51,8 @@ export default function HealthEvents() {
     { value: 'Symptom', label: 'Symptom (อาการผิดปกติ)', icon: Activity, color: 'text-yellow-600', bg: 'bg-yellow-100' },
     { value: 'Diagnosis', label: 'Diagnosis (การวินิจฉัยโรค)', icon: Stethoscope, color: 'text-indigo-600', bg: 'bg-indigo-100' },
     { value: 'Surgery/Procedure', label: 'Surgery / Procedure (ผ่าตัด/หัตถการ)', icon: Syringe, color: 'text-rose-600', bg: 'bg-rose-100' },
+    { value: 'Alcohol', label: 'Alcohol History (ประวัติการดื่มเหล้า)', icon: Wine, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { value: 'Smoking', label: 'Smoking History (ประวัติการสูบบุหรี่)', icon: Cigarette, color: 'text-slate-600', bg: 'bg-slate-200' },
     { value: 'Other', label: 'Other (อื่นๆ)', icon: CalendarHeart, color: 'text-slate-600', bg: 'bg-slate-100' },
   ];
 
@@ -134,7 +140,11 @@ export default function HealthEvents() {
       Notes: event.Notes || '',
       Severity: event.Severity || 'ปานกลาง',
       Status: event.Status || 'ยังมีอาการค้างอยู่',
-      RelatedMedications: event.RelatedMedications || ''
+      RelatedMedications: event.RelatedMedications || '',
+      EndDate: event.EndDate || '',
+      IsActive: event.IsActive || 'Yes',
+      Frequency: event.Frequency || '',
+      Quantity: event.Quantity || ''
     });
     setConfirmDelete(null);
     setIsModalOpen(true);
@@ -377,7 +387,9 @@ export default function HealthEvents() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {['Alcohol', 'Smoking'].includes(newEvent.Type) ? 'Start Date (เริ่มเมื่อไหร่) *' : 'Date *'}
+                  </label>
                   <input 
                     type="date" 
                     required
@@ -398,53 +410,116 @@ export default function HealthEvents() {
                     ))}
                   </select>
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={newEvent.Description}
-                    onChange={e => setNewEvent({...newEvent, Description: e.target.value})}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    placeholder="e.g., เปลี่ยนข้อเข่าเทียม, ติดโควิด, หน้ามืดเวียนหัว"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Severity (ความรุนแรง)</label>
-                  <select 
-                    value={newEvent.Severity}
-                    onChange={e => setNewEvent({...newEvent, Severity: e.target.value})}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  >
-                    <option value="น้อย">น้อย (Mild)</option>
-                    <option value="ปานกลาง">ปานกลาง (Moderate)</option>
-                    <option value="มาก">มาก (Severe)</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Status (สถานะ)</label>
-                  <select 
-                    value={newEvent.Status}
-                    onChange={e => setNewEvent({...newEvent, Status: e.target.value})}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  >
-                    <option value="หายดีแล้ว">หายดีแล้ว (Resolved)</option>
-                    <option value="ยังมีอาการค้างอยู่">ยังมีอาการค้างอยู่ (Ongoing)</option>
-                  </select>
-                </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Related Medications (ยาที่เกี่ยวข้อง)</label>
-                  <input 
-                    type="text" 
-                    value={newEvent.RelatedMedications}
-                    onChange={e => setNewEvent({...newEvent, RelatedMedications: e.target.value})}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    placeholder="e.g., Paracetamol, Amoxicillin (ระบุชื่อยาที่ใช้รักษาอาการนี้)"
-                  />
-                </div>
+                {['Alcohol', 'Smoking'].includes(newEvent.Type) ? (
+                  <>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        {newEvent.Type === 'Alcohol' ? 'Type of Alcohol (ประเภทเครื่องดื่ม) *' : 'Type of Tobacco (ประเภทบุหรี่) *'}
+                      </label>
+                      <input 
+                        type="text" 
+                        required
+                        value={newEvent.Description}
+                        onChange={e => setNewEvent({...newEvent, Description: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder={newEvent.Type === 'Alcohol' ? "e.g., เบียร์, ไวน์, เหล้าขาว" : "e.g., บุหรี่มวน, บุหรี่ไฟฟ้า"}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Status (สถานะ)</label>
+                      <select 
+                        value={newEvent.IsActive}
+                        onChange={e => setNewEvent({...newEvent, IsActive: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                      >
+                        <option value="Yes">ยังดื่ม/สูบอยู่ (Active)</option>
+                        <option value="No">เลิกแล้ว (Quit)</option>
+                      </select>
+                    </div>
+                    {newEvent.IsActive === 'No' && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">End Date (เลิกเมื่อไหร่)</label>
+                        <input 
+                          type="date" 
+                          value={newEvent.EndDate}
+                          onChange={e => setNewEvent({...newEvent, EndDate: e.target.value})}
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Frequency (ถี่แค่ไหน)</label>
+                      <input 
+                        type="text" 
+                        value={newEvent.Frequency}
+                        onChange={e => setNewEvent({...newEvent, Frequency: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., ทุกวัน, สัปดาห์ละ 2-3 ครั้ง"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Quantity (หนักแค่ไหน)</label>
+                      <input 
+                        type="text" 
+                        value={newEvent.Quantity}
+                        onChange={e => setNewEvent({...newEvent, Quantity: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder={newEvent.Type === 'Alcohol' ? "e.g., 2 แก้วต่อวัน, 1 แบนต่อสัปดาห์" : "e.g., 10 มวนต่อวัน, 1 ซองต่อวัน"}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={newEvent.Description}
+                        onChange={e => setNewEvent({...newEvent, Description: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., เปลี่ยนข้อเข่าเทียม, ติดโควิด, หน้ามืดเวียนหัว"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Severity (ความรุนแรง)</label>
+                      <select 
+                        value={newEvent.Severity}
+                        onChange={e => setNewEvent({...newEvent, Severity: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                      >
+                        <option value="น้อย">น้อย (Mild)</option>
+                        <option value="ปานกลาง">ปานกลาง (Moderate)</option>
+                        <option value="มาก">มาก (Severe)</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Status (สถานะ)</label>
+                      <select 
+                        value={newEvent.Status}
+                        onChange={e => setNewEvent({...newEvent, Status: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                      >
+                        <option value="หายดีแล้ว">หายดีแล้ว (Resolved)</option>
+                        <option value="ยังมีอาการค้างอยู่">ยังมีอาการค้างอยู่ (Ongoing)</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Related Medications (ยาที่เกี่ยวข้อง)</label>
+                      <input 
+                        type="text" 
+                        value={newEvent.RelatedMedications}
+                        onChange={e => setNewEvent({...newEvent, RelatedMedications: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., Paracetamol, Amoxicillin (ระบุชื่อยาที่ใช้รักษาอาการนี้)"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Additional Notes</label>
@@ -642,11 +717,37 @@ export default function HealthEvents() {
                             สถานะ: {event.Status}
                           </span>
                         )}
+                        {event.IsActive && (
+                          <span className={clsx(
+                            "text-xs font-medium px-2 py-0.5 rounded-md border",
+                            event.IsActive === 'Yes' ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          )}>
+                            {event.IsActive === 'Yes' ? 'ยังดื่ม/สูบอยู่' : 'เลิกแล้ว'}
+                          </span>
+                        )}
                       </div>
                       {event.RelatedMedications && (
                         <div className="text-sm text-slate-600 mb-3 flex items-start gap-2">
                           <span className="font-medium text-slate-700 whitespace-nowrap">ยาที่เกี่ยวข้อง:</span>
                           <span className="flex-1">{event.RelatedMedications}</span>
+                        </div>
+                      )}
+                      {event.Frequency && (
+                        <div className="text-sm text-slate-600 mb-1 flex items-start gap-2">
+                          <span className="font-medium text-slate-700 whitespace-nowrap">ความถี่:</span>
+                          <span className="flex-1">{event.Frequency}</span>
+                        </div>
+                      )}
+                      {event.Quantity && (
+                        <div className="text-sm text-slate-600 mb-1 flex items-start gap-2">
+                          <span className="font-medium text-slate-700 whitespace-nowrap">ปริมาณ:</span>
+                          <span className="flex-1">{event.Quantity}</span>
+                        </div>
+                      )}
+                      {event.IsActive === 'No' && event.EndDate && (
+                        <div className="text-sm text-slate-600 mb-3 flex items-start gap-2">
+                          <span className="font-medium text-slate-700 whitespace-nowrap">วันที่เลิก:</span>
+                          <span className="flex-1">{formatThaiDate(event.EndDate)}</span>
                         </div>
                       )}
                       {event.Notes && (

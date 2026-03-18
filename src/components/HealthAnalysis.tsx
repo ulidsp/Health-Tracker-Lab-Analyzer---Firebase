@@ -8,9 +8,10 @@ interface HealthAnalysisProps {
   vitals: any[];
   labs: any[];
   profile: any;
+  healthEvents?: any[];
 }
 
-export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysisProps) {
+export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [] }: HealthAnalysisProps) {
   const analysis = useMemo(() => {
     const results: any[] = [];
 
@@ -1181,6 +1182,82 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       });
     }
 
+    // 8. 10-Year CVD Risk Score (Framingham 2008)
+    if (age !== null && age >= 30 && age <= 74 && latestVitals?.Systolic) {
+      const tc = getLatestLab(['Total Cholesterol', 'Cholesterol', 'TC'], ['HDL', 'LDL', 'Ratio']);
+      const hdl = getLatestLab(['HDL', 'High Density'], ['Ratio']);
+      
+      if (tc && hdl) {
+        const systolic = parseFloat(latestVitals.Systolic);
+        const tcVal = tc.parsedValue;
+        const hdlVal = hdl.parsedValue;
+        
+        // Check for smoking history
+        const isSmoker = healthEvents.some(e => e.Type === 'Smoking' && e.IsActive === 'Yes');
+        
+        // Check for diabetes
+        const fbs = getLatestLab(['Fasting Blood Sugar', 'FBS', 'Glucose'], ['Average', 'eAG', 'Urine']);
+        const hba1c = getLatestLab(['HbA1c', 'Hemoglobin A1c'], ['Average', 'eAG']);
+        const hasDiabetes = healthEvents.some(e => e.Type === 'Illness' && (e.Description.includes('เบาหวาน') || e.Description.toLowerCase().includes('diabetes'))) || 
+                            (fbs && fbs.parsedValue >= 126) || 
+                            (hba1c && hba1c.parsedValue >= 6.5);
+                            
+        // Check for hypertension treatment
+        const isTreatedForHTN = healthEvents.some(e => e.Type === 'Illness' && (e.Description.includes('ความดัน') || e.Description.toLowerCase().includes('hypertension')) && e.RelatedMedications && e.RelatedMedications.trim() !== '');
+
+        let risk = 0;
+        
+        if (isFemale) {
+          const L = 2.32888 * Math.log(age) + 
+                    1.20904 * Math.log(tcVal) - 
+                    0.70833 * Math.log(hdlVal) + 
+                    (isTreatedForHTN ? 2.82263 : 2.76157) * Math.log(systolic) + 
+                    0.52873 * (isSmoker ? 1 : 0) + 
+                    0.69154 * (hasDiabetes ? 1 : 0);
+          risk = 100 * (1 - Math.pow(0.95012, Math.exp(L - 26.1931)));
+        } else if (isMale) {
+          const L = 3.06117 * Math.log(age) + 
+                    1.12370 * Math.log(tcVal) - 
+                    0.93263 * Math.log(hdlVal) + 
+                    (isTreatedForHTN ? 1.99881 : 1.93303) * Math.log(systolic) + 
+                    0.65451 * (isSmoker ? 1 : 0) + 
+                    0.57367 * (hasDiabetes ? 1 : 0);
+          risk = 100 * (1 - Math.pow(0.88936, Math.exp(L - 23.9802)));
+        }
+        
+        if (risk > 0) {
+          let status = '';
+          let color = '';
+          let advice = '';
+          
+          if (risk < 10) {
+            status = 'ความเสี่ยงต่ำ (Low Risk)';
+            color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+            advice = 'ความเสี่ยงโรคหัวใจและหลอดเลือดใน 10 ปีอยู่ในระดับต่ำ ควรรักษาสุขภาพให้ดีต่อไป';
+          } else if (risk >= 10 && risk < 20) {
+            status = 'ความเสี่ยงปานกลาง (Intermediate Risk)';
+            color = 'text-amber-600 bg-amber-50 border-amber-200';
+            advice = 'มีความเสี่ยงปานกลาง ควรปรับเปลี่ยนพฤติกรรม เช่น ควบคุมอาหาร ออกกำลังกาย และปรึกษาแพทย์';
+          } else {
+            status = 'ความเสี่ยงสูง (High Risk)';
+            color = 'text-rose-600 bg-rose-50 border-rose-200';
+            advice = 'มีความเสี่ยงสูงมาก ควรพบแพทย์เพื่อรับการประเมินและรักษาอย่างใกล้ชิด';
+          }
+          
+          results.push({
+            category: 'ความเสี่ยงโรคหัวใจและหลอดเลือด 10 ปี (10-Year CVD Risk)',
+            date: latestVitals.Date,
+            value: risk.toFixed(1),
+            unit: '%',
+            status,
+            color,
+            icon: Heart,
+            advice: `${advice} (ประเมินจากอายุ, เพศ, ความดันโลหิต, คอเลสเตอรอลรวม, HDL, ประวัติการสูบบุหรี่ และเบาหวาน)`
+          });
+        }
+      }
+    }
+
     const criteriaMap: Record<string, string[]> = {
       'ดัชนีมวลกาย (BMI)': [
         '< 18.5 : น้ำหนักน้อย (Underweight)',
@@ -1253,6 +1330,12 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
         '3. น้ำตาล (FBS): >= 100 mg/dL',
         '4. ไตรกลีเซอไรด์: >= 150 mg/dL',
         '5. HDL: ชาย < 40, หญิง < 50 mg/dL'
+      ],
+      'ความเสี่ยงโรคหัวใจและหลอดเลือด 10 ปี (10-Year CVD Risk)': [
+        '< 10% : ความเสี่ยงต่ำ (Low Risk)',
+        '10% - 19% : ความเสี่ยงปานกลาง (Intermediate Risk)',
+        '>= 20% : ความเสี่ยงสูง (High Risk)',
+        '* ประเมินด้วย Framingham Risk Score (2008) จากอายุ, เพศ, ความดันโลหิต, คอเลสเตอรอลรวม, HDL, ประวัติการสูบบุหรี่ และเบาหวาน'
       ],
       'การอักเสบ (hs-CRP)': [
         '< 1.0 : ความเสี่ยงต่ำ (Low Risk)',
@@ -1337,7 +1420,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       ...r,
       criteria: criteriaMap[r.category] || []
     }));
-  }, [vitals, labs, profile]);
+  }, [vitals, labs, profile, healthEvents]);
 
   if (analysis.length === 0) {
     return null;

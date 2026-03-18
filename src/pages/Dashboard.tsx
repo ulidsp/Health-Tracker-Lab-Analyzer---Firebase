@@ -16,6 +16,7 @@ export default function Dashboard() {
   const { activeProfile } = useProfile();
   const [vitals, setVitals] = useState<any[]>([]);
   const [labs, setLabs] = useState<any[]>([]);
+  const [healthEvents, setHealthEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -30,14 +31,17 @@ export default function Dashboard() {
       try {
         const vitalsQuery = query(collection(db, 'Vitals'), where('profileId', '==', activeProfile.id));
         const labsQuery = query(collection(db, 'LabResults'), where('profileId', '==', activeProfile.id));
+        const eventsQuery = query(collection(db, 'HealthEvents'), where('profileId', '==', activeProfile.id));
         
-        const [vitalsSnapshot, labsSnapshot] = await Promise.all([
+        const [vitalsSnapshot, labsSnapshot, eventsSnapshot] = await Promise.all([
           getDocs(vitalsQuery).catch(err => handleFirestoreError(err, OperationType.GET, 'Vitals')),
-          getDocs(labsQuery).catch(err => handleFirestoreError(err, OperationType.GET, 'LabResults'))
+          getDocs(labsQuery).catch(err => handleFirestoreError(err, OperationType.GET, 'LabResults')),
+          getDocs(eventsQuery).catch(err => handleFirestoreError(err, OperationType.GET, 'HealthEvents'))
         ]) as any[];
         
         setVitals(vitalsSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
         setLabs(labsSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+        setHealthEvents(eventsSnapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -503,7 +507,7 @@ export default function Dashboard() {
       </div>
 
       {/* Health Analysis Section */}
-      <HealthAnalysis vitals={filteredVitals} labs={filteredLabs} profile={activeProfile} />
+      <HealthAnalysis vitals={filteredVitals} labs={filteredLabs} profile={activeProfile} healthEvents={healthEvents} />
     </div>
   );
 }
