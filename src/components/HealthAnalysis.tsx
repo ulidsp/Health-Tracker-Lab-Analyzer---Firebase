@@ -347,6 +347,36 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
       });
     }
 
+    // Shared variables for CVD Risk and Metabolic Syndrome
+    const hasDiabetes = healthEvents.some(e => e.Type === 'Illness' && (e.Description.includes('เบาหวาน') || e.Description.toLowerCase().includes('diabetes'))) || 
+                        (fbs && fbs.parsedValue >= 126) || 
+                        (hba1c && hba1c.parsedValue >= 6.5);
+                        
+    // Helper to check if a medication is for hypertension
+    const isHTNMedication = (med: any) => {
+      if (!med) return false;
+      const purpose = (med.Purpose || '').toLowerCase();
+      const name = (med.MedicationName || '').toLowerCase();
+      
+      // Check purpose
+      if (purpose.includes('ความดัน') || purpose.includes('hypertension') || purpose.includes('blood pressure') || purpose.includes('htn')) {
+        return true;
+      }
+      
+      // Check common drug name suffixes and specific drugs
+      const htnSuffixes = ['pril', 'sartan', 'olol', 'alol', 'ilol', 'dipine', 'zosin', 'thiazide'];
+      const htnDrugs = ['diltiazem', 'verapamil', 'chlorthalidone', 'indapamide', 'furosemide', 'spironolactone', 'clonidine', 'methyldopa', 'hydralazine', 'minoxidil', 'amiloride', 'bumetanide', 'torsemide', 'triamterene'];
+      
+      if (htnSuffixes.some(suffix => name.endsWith(suffix) || name.includes(suffix + ' '))) return true;
+      if (htnDrugs.some(drug => name.includes(drug))) return true;
+      
+      return false;
+    };
+
+    // Check for hypertension treatment from Health Events OR Medications
+    const isTreatedForHTN = healthEvents.some(e => e.Type === 'Illness' && (e.Description.includes('ความดัน') || e.Description.toLowerCase().includes('hypertension')) && e.RelatedMedications && e.RelatedMedications.trim() !== '') ||
+                            medications.some(med => isHTNMedication(med) && (!med.EndDate || new Date(med.EndDate) >= new Date()));
+
     // 3. Lipid Profile
     const ldl = getLatestLab(['LDL', 'Low Density Lipoprotein'], ['ratio']);
     if (ldl) {
@@ -603,18 +633,26 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
         let color = '';
         let advice = '';
 
+        const explanation = `ภาวะระบบเผาผลาญผิดปกติ (Metabolic Syndrome) คือกลุ่มความผิดปกติที่เพิ่มความเสี่ยงโรคหัวใจ หลอดเลือดสมอง และเบาหวาน ประกอบด้วย 5 ปัจจัย:
+1. รอบเอวเกิน (อ้วนลงพุง): ไขมันสะสมในช่องท้องมาก ก่อให้เกิดการอักเสบและดื้อต่ออินซูลิน
+2. ความดันโลหิตสูง: ทำให้หลอดเลือดแข็งตัวและหัวใจทำงานหนัก เสี่ยงต่อโรคหัวใจและหลอดเลือดสมอง
+3. น้ำตาลในเลือดสูง: บ่งบอกถึงภาวะดื้อต่ออินซูลิน เสี่ยงเป็นโรคเบาหวานประเภทที่ 2
+4. ไตรกลีเซอไรด์สูง: ไขมันตัวร้ายที่สะสมในหลอดเลือด ทำให้หลอดเลือดตีบตัน
+5. HDL ต่ำ: ไขมันตัวดีที่ช่วยเก็บกวาดไขมันเลว หากมีต่ำจะทำให้การกำจัดไขมันเลวลดลง เพิ่มความเสี่ยงหลอดเลือดอุดตัน
+*หากพบความผิดปกติ 3 ข้อขึ้นไป จะถือว่ามีภาวะนี้`;
+
         if (criteriaMet >= 3) {
           status = 'พบภาวะ (Metabolic Syndrome)';
           color = 'text-rose-600 bg-rose-50 border-rose-200';
-          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ เข้าข่ายกลุ่มอาการระบบเผาผลาญผิดปกติ เสี่ยงต่อโรคหัวใจและเบาหวานสูงมาก ควรพบแพทย์เพื่อวางแผนการรักษา`;
+          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ เข้าเกณฑ์ภาวะระบบเผาผลาญผิดปกติ\n\n${explanation}\n\nคำแนะนำ: ควรพบแพทย์เพื่อประเมินความเสี่ยงและวางแผนการรักษาโดยด่วน รวมถึงควบคุมอาหารและออกกำลังกาย`;
         } else if (criteriaMet > 0) {
           status = 'เริ่มมีความเสี่ยง (At Risk)';
           color = 'text-amber-600 bg-amber-50 border-amber-200';
-          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ ควรปรับเปลี่ยนพฤติกรรมเพื่อป้องกันภาวะระบบเผาผลาญผิดปกติ`;
+          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ เริ่มมีความเสี่ยง\n\n${explanation}\n\nคำแนะนำ: ควรปรับเปลี่ยนพฤติกรรม เช่น ลดอาหารหวาน/มัน และออกกำลังกาย เพื่อป้องกันไม่ให้เกิดภาวะนี้`;
         } else {
           status = 'ปกติ (Normal)';
           color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
-          advice = 'ไม่พบความเสี่ยงกลุ่มอาการระบบเผาผลาญผิดปกติ ระบบเผาผลาญทำงานได้ดีเยี่ยม';
+          advice = `ไม่พบความผิดปกติ (0/5 ข้อ) ระบบเผาผลาญทำงานได้ดีเยี่ยม\n\n${explanation}\n\nคำแนะนำ: ควรรักษาสุขภาพและพฤติกรรมที่ดีนี้ต่อไป`;
         }
 
         results.push({
@@ -1195,38 +1233,6 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
         
         // Check for smoking history
         const isSmoker = healthEvents.some(e => e.Type === 'Smoking' && e.IsActive === 'Yes');
-        
-        // Check for diabetes
-        const fbs = getLatestLab(['Fasting Blood Sugar', 'FBS', 'Glucose'], ['Average', 'eAG', 'Urine']);
-        const hba1c = getLatestLab(['HbA1c', 'Hemoglobin A1c'], ['Average', 'eAG']);
-        const hasDiabetes = healthEvents.some(e => e.Type === 'Illness' && (e.Description.includes('เบาหวาน') || e.Description.toLowerCase().includes('diabetes'))) || 
-                            (fbs && fbs.parsedValue >= 126) || 
-                            (hba1c && hba1c.parsedValue >= 6.5);
-                            
-        // Helper to check if a medication is for hypertension
-        const isHTNMedication = (med: any) => {
-          if (!med) return false;
-          const purpose = (med.Purpose || '').toLowerCase();
-          const name = (med.MedicationName || '').toLowerCase();
-          
-          // Check purpose
-          if (purpose.includes('ความดัน') || purpose.includes('hypertension') || purpose.includes('blood pressure') || purpose.includes('htn')) {
-            return true;
-          }
-          
-          // Check common drug name suffixes and specific drugs
-          const htnSuffixes = ['pril', 'sartan', 'olol', 'alol', 'ilol', 'dipine', 'zosin', 'thiazide'];
-          const htnDrugs = ['diltiazem', 'verapamil', 'chlorthalidone', 'indapamide', 'furosemide', 'spironolactone', 'clonidine', 'methyldopa', 'hydralazine', 'minoxidil', 'amiloride', 'bumetanide', 'torsemide', 'triamterene'];
-          
-          if (htnSuffixes.some(suffix => name.endsWith(suffix) || name.includes(suffix + ' '))) return true;
-          if (htnDrugs.some(drug => name.includes(drug))) return true;
-          
-          return false;
-        };
-
-        // Check for hypertension treatment from Health Events OR Medications
-        const isTreatedForHTN = healthEvents.some(e => e.Type === 'Illness' && (e.Description.includes('ความดัน') || e.Description.toLowerCase().includes('hypertension')) && e.RelatedMedications && e.RelatedMedications.trim() !== '') ||
-                                medications.some(med => isHTNMedication(med) && (!med.EndDate || new Date(med.EndDate) >= new Date()));
 
         let risk = 0;
         
@@ -1282,6 +1288,14 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
     }
 
     const criteriaMap: Record<string, string[]> = {
+      'ระบบเผาผลาญ (Metabolic Syndrome)': [
+        'วินิจฉัยเมื่อพบความผิดปกติ 3 ใน 5 ข้อขึ้นไป:',
+        `1. อ้วนลงพุง (รอบเอว ${isMale ? '>= 36' : (isFemale ? '>= 32' : '>= 36 ชาย, >= 32 หญิง')} นิ้ว)`,
+        '2. ไตรกลีเซอไรด์สูง (>= 150 mg/dL)',
+        `3. ไขมันดี (HDL) ต่ำ (< ${isMale ? '40' : (isFemale ? '50' : '40 ชาย, 50 หญิง')} mg/dL)`,
+        '4. ความดันโลหิตสูง (>= 130/85 mmHg หรือรับประทานยาลดความดัน)',
+        '5. น้ำตาลในเลือดสูง (FBS >= 100 mg/dL หรือเป็นเบาหวาน)'
+      ],
       'ดัชนีมวลกาย (BMI)': [
         '< 18.5 : น้ำหนักน้อย (Underweight)',
         '18.5 - 22.9 : ปกติ (Normal)',
@@ -1345,14 +1359,6 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
         '< 2.0 : ปกติ (Normal)',
         '2.0 - 2.9 : เริ่มเสี่ยง (Borderline)',
         '>= 3.0 : ดื้ออินซูลิน (Insulin Resistance)'
-      ],
-      'ระบบเผาผลาญ (Metabolic Syndrome)': [
-        'เกณฑ์ 5 ข้อ (ผิดปกติ >= 3 ข้อ ถือว่าพบภาวะ):',
-        '1. รอบเอว: >= ครึ่งหนึ่งของส่วนสูง (หรือ ชาย >= 36 นิ้ว, หญิง >= 32 นิ้ว)',
-        '2. ความดัน: >= 130/85 mmHg',
-        '3. น้ำตาล (FBS): >= 100 mg/dL',
-        '4. ไตรกลีเซอไรด์: >= 150 mg/dL',
-        '5. HDL: ชาย < 40, หญิง < 50 mg/dL'
       ],
       'ความเสี่ยงโรคหัวใจและหลอดเลือด 10 ปี (10-Year CVD Risk)': [
         '< 10% : ความเสี่ยงต่ำ (Low Risk)',
@@ -1481,7 +1487,7 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
                 <div className="inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-semibold bg-white/60 shadow-sm">
                   {item.status}
                 </div>
-                <p className="text-sm font-medium opacity-90 leading-relaxed">
+                <p className="text-sm font-medium opacity-90 leading-relaxed whitespace-pre-wrap">
                   {item.advice}
                 </p>
               </div>
