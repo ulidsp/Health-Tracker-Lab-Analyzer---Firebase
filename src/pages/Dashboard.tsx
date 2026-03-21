@@ -74,9 +74,10 @@ export default function Dashboard() {
   const bpData = filteredVitals.map((v: any) => ({
     date: v.Date,
     systolic: parseInt(v.Systolic),
-    diastolic: parseInt(v.Diastolic)
+    diastolic: parseInt(v.Diastolic),
+    heartRate: v.HeartRate ? parseInt(v.HeartRate) : undefined
   }))
-  .filter(v => v.systolic && v.diastolic)
+  .filter(v => (!isNaN(v.systolic) && !isNaN(v.diastolic)) || !isNaN(v.heartRate))
   .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const spo2Data = filteredVitals.map((v: any) => ({
@@ -243,7 +244,9 @@ export default function Dashboard() {
     </div>
   );
 
-  const latestBp = bpData.length > 0 ? bpData[bpData.length - 1] : null;
+  const latestBpReading = [...bpData].reverse().find(d => !isNaN(d.systolic) && !isNaN(d.diastolic));
+  const latestHrReading = [...bpData].reverse().find(d => !isNaN(d.heartRate as number));
+  const latestBpDate = bpData.length > 0 ? bpData[bpData.length - 1].date : null;
   const latestFbs = [...sugarData].reverse().find(d => d.fbs !== undefined);
 
   if (!activeProfile) {
@@ -353,16 +356,23 @@ export default function Dashboard() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm font-medium text-slate-500">Latest BP</p>
-                {latestBp?.date && (
+                <p className="text-sm font-medium text-slate-500">Latest BP & HR</p>
+                {latestBpDate && (
                   <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                    {formatThaiDate(latestBp.date)}
+                    {formatThaiDate(latestBpDate)}
                   </span>
                 )}
               </div>
-              <p className="text-2xl font-bold text-slate-900">
-                {latestBp ? `${latestBp.systolic}/${latestBp.diastolic}` : '--/--'}
-              </p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-bold text-slate-900">
+                  {latestBpReading ? `${latestBpReading.systolic}/${latestBpReading.diastolic}` : '--/--'}
+                </p>
+                {latestHrReading && (
+                  <span className="text-sm font-medium text-slate-500">
+                    HR: {latestHrReading.heartRate} bpm
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -392,13 +402,15 @@ export default function Dashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard 
-          title="ความดันโลหิต (Blood Pressure)" 
+          title="ความดันโลหิตและชีพจร (Blood Pressure & Heart Rate)" 
           data={bpData} 
           lines={[
-            { key: 'systolic', color: '#e11d48', name: 'ตัวบน (Systolic)' },
-            { key: 'diastolic', color: '#3b82f6', name: 'ตัวล่าง (Diastolic)' }
+            { key: 'systolic', color: '#e11d48', name: 'ตัวบน (Systolic)', yAxisId: 'left' },
+            { key: 'diastolic', color: '#3b82f6', name: 'ตัวล่าง (Diastolic)', yAxisId: 'left' },
+            { key: 'heartRate', color: '#10b981', name: 'ชีพจร (Heart Rate)', yAxisId: 'right' }
           ]}
-          interpretation="ตัวบนควร < 120 และตัวล่างควร < 80 mmHg หากเกิน 140/90 ถือว่ามีความดันโลหิตสูง ควรควบคุมอาหารเค็มและออกกำลังกาย"
+          dualAxis={true}
+          interpretation="ความดันตัวบนควร < 120 และตัวล่างควร < 80 mmHg หากเกิน 140/90 ถือว่ามีความดันโลหิตสูง ชีพจรปกติขณะพักควรอยู่ระหว่าง 60-100 ครั้งต่อนาที"
         />
 
         <ChartCard 
