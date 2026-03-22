@@ -211,7 +211,26 @@ export default function Chat() {
         const meds = medsSnap.docs.map((d: any) => d.data());
         const history = historySnap.docs.map((d: any) => d.data());
         const activities = activitiesSnap.docs.map((d: any) => d.data());
-        const events = eventsSnap.docs.map((d: any) => d.data());
+        const events = eventsSnap.docs.map((d: any) => {
+          const data = d.data();
+          const isBehavior = ['Alcohol', 'Smoking'].includes(data.Type);
+          return {
+            Date: data.Date,
+            Type: data.Type,
+            Description: data.Description,
+            Notes: data.Notes,
+            ...(isBehavior ? {
+              IsActive: data.IsActive,
+              EndDate: data.EndDate,
+              Frequency: data.Frequency,
+              Quantity: data.Quantity
+            } : {
+              Severity: data.Severity,
+              Status: data.Status,
+              RelatedMedications: data.RelatedMedications
+            })
+          };
+        });
         const notes = notesSnap.docs.map((d: any) => d.data());
 
         healthContext = `
@@ -260,8 +279,9 @@ ${JSON.stringify(notes, null, 2)}
         3. ให้คำแนะนำเรื่องการใช้ยา ผลข้างเคียง ข้อควรระวัง หรือปฏิกิริยาระหว่างยา (Drug Interactions) จากประวัติการใช้ยาทั้งในอดีตและปัจจุบัน
         4. นำข้อมูลกิจกรรมและกิจวัตรประจำวัน (Activities) ทั้งหมดมาประเมินร่วมกับปัญหาสุขภาพ เพื่อดูพฤติกรรมสะสมและให้คำแนะนำด้านการปรับเปลี่ยนพฤติกรรม (Lifestyle Modification) ที่เหมาะสม
         5. นำประวัติสุขภาพครอบครัว (Family Medical History) มาประเมินความเสี่ยงของโรคทางพันธุกรรม หรือโรคที่อาจเกิดขึ้นในอนาคต พร้อมแนะนำการตรวจคัดกรองที่เหมาะสม
-        6. ตอบคำถามด้วยความเห็นอกเห็นใจ เป็นมืออาชีพ และใช้ภาษาที่เข้าใจง่าย (ภาษาไทย)
-        7. **คำเตือนสำคัญ:** ต้องระบุเสมอว่าคุณเป็นเพียง AI ผู้ช่วยทางการแพทย์ และผู้ป่วยควรปรึกษาแพทย์เจ้าของไข้เพื่อการวินิจฉัยและการรักษาที่ถูกต้อง
+        6. สำหรับข้อมูล Health Events: หากเป็นประเภท Alcohol/Smoking ให้ดูที่ IsActive (Yes=ยังทำอยู่, No=เลิกแล้ว), Frequency, Quantity, EndDate เป็นหลัก ส่วนประเภทอื่นๆ (Illness, Symptom ฯลฯ) ให้ดูที่ Status (หายดีแล้ว/ยังมีอาการค้างอยู่), Severity, RelatedMedications เป็นหลัก
+        7. ตอบคำถามด้วยความเห็นอกเห็นใจ เป็นมืออาชีพ และใช้ภาษาที่เข้าใจง่าย (ภาษาไทย)
+        8. **คำเตือนสำคัญ:** ต้องระบุเสมอว่าคุณเป็นเพียง AI ผู้ช่วยทางการแพทย์ และผู้ป่วยควรปรึกษาแพทย์เจ้าของไข้เพื่อการวินิจฉัยและการรักษาที่ถูกต้อง
       `;
 
       const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });

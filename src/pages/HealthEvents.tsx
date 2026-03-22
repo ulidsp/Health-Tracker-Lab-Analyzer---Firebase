@@ -679,7 +679,7 @@ export default function HealthEvents() {
                         <span className={clsx("text-xs font-medium px-2 py-0.5 rounded-md", typeConfig.bg, typeConfig.color)}>
                           <Highlight text={event.Type} query={searchQuery} />
                         </span>
-                        {event.Severity && (
+                        {event.Severity && !['Alcohol', 'Smoking'].includes(event.Type) && (
                           <span className={clsx(
                             "text-xs font-medium px-2 py-0.5 rounded-md border",
                             event.Severity === 'มาก' ? "bg-rose-50 text-rose-700 border-rose-200" :
@@ -689,7 +689,7 @@ export default function HealthEvents() {
                             ความรุนแรง: {event.Severity}
                           </span>
                         )}
-                        {event.Status && (
+                        {event.Status && !['Alcohol', 'Smoking'].includes(event.Type) && (
                           <span className={clsx(
                             "text-xs font-medium px-2 py-0.5 rounded-md border",
                             event.Status === 'หายดีแล้ว' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-blue-50 text-blue-700 border-blue-200"
@@ -697,7 +697,7 @@ export default function HealthEvents() {
                             สถานะ: {event.Status}
                           </span>
                         )}
-                        {event.IsActive && (
+                        {event.IsActive && ['Alcohol', 'Smoking'].includes(event.Type) && (
                           <span className={clsx(
                             "text-xs font-medium px-2 py-0.5 rounded-md border",
                             event.IsActive === 'Yes' ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -706,25 +706,25 @@ export default function HealthEvents() {
                           </span>
                         )}
                       </div>
-                      {event.RelatedMedications && (
+                      {event.RelatedMedications && !['Alcohol', 'Smoking'].includes(event.Type) && (
                         <div className="text-sm text-slate-600 mb-3 flex items-start gap-2">
                           <span className="font-medium text-slate-700 whitespace-nowrap">ยาที่เกี่ยวข้อง:</span>
                           <span className="flex-1">{event.RelatedMedications}</span>
                         </div>
                       )}
-                      {event.Frequency && (
+                      {event.Frequency && ['Alcohol', 'Smoking'].includes(event.Type) && (
                         <div className="text-sm text-slate-600 mb-1 flex items-start gap-2">
                           <span className="font-medium text-slate-700 whitespace-nowrap">ความถี่:</span>
                           <span className="flex-1">{event.Frequency}</span>
                         </div>
                       )}
-                      {event.Quantity && (
+                      {event.Quantity && ['Alcohol', 'Smoking'].includes(event.Type) && (
                         <div className="text-sm text-slate-600 mb-1 flex items-start gap-2">
                           <span className="font-medium text-slate-700 whitespace-nowrap">ปริมาณ:</span>
                           <span className="flex-1">{event.Quantity}</span>
                         </div>
                       )}
-                      {event.IsActive === 'No' && event.EndDate && (
+                      {event.IsActive === 'No' && event.EndDate && ['Alcohol', 'Smoking'].includes(event.Type) && (
                         <div className="text-sm text-slate-600 mb-3 flex items-start gap-2">
                           <span className="font-medium text-slate-700 whitespace-nowrap">วันที่เลิก:</span>
                           <span className="flex-1">{formatThaiDate(event.EndDate)}</span>
