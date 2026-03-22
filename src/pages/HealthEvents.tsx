@@ -455,40 +455,45 @@ export default function HealthEvents() {
                   >
                     <option value="Yes">ยังทำอยู่ (Active)</option>
                     <option value="No">เลิกแล้ว (Quit)</option>
+                    <option value="Never">ไม่เคย (Never)</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">End Date (วันที่สิ้นสุด/เลิกเมื่อไหร่)</label>
-                  <input 
-                    type="date" 
-                    value={newEvent.EndDate || ''}
-                    onChange={e => setNewEvent({...newEvent, EndDate: e.target.value})}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  />
-                </div>
+                {newEvent.IsActive !== 'Never' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">End Date (วันที่สิ้นสุด/เลิกเมื่อไหร่)</label>
+                      <input 
+                        type="date" 
+                        value={newEvent.EndDate || ''}
+                        onChange={e => setNewEvent({...newEvent, EndDate: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Frequency (ความถี่)</label>
-                  <input 
-                    type="text" 
-                    value={newEvent.Frequency || ''}
-                    onChange={e => setNewEvent({...newEvent, Frequency: e.target.value})}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    placeholder="e.g., ทุกวัน, สัปดาห์ละ 2-3 ครั้ง"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Quantity (ปริมาณ)</label>
-                  <input 
-                    type="text" 
-                    value={newEvent.Quantity || ''}
-                    onChange={e => setNewEvent({...newEvent, Quantity: e.target.value})}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    placeholder="e.g., 2 แก้วต่อวัน, 10 มวนต่อวัน"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Frequency (ความถี่)</label>
+                      <input 
+                        type="text" 
+                        value={newEvent.Frequency || ''}
+                        onChange={e => setNewEvent({...newEvent, Frequency: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., ทุกวัน, สัปดาห์ละ 2-3 ครั้ง"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Quantity (ปริมาณ)</label>
+                      <input 
+                        type="text" 
+                        value={newEvent.Quantity || ''}
+                        onChange={e => setNewEvent({...newEvent, Quantity: e.target.value})}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., 2 แก้วต่อวัน, 10 มวนต่อวัน"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Related Medications (ยาที่เกี่ยวข้อง)</label>
@@ -700,9 +705,12 @@ export default function HealthEvents() {
                         {event.IsActive && ['Alcohol', 'Smoking'].includes(event.Type) && (
                           <span className={clsx(
                             "text-xs font-medium px-2 py-0.5 rounded-md border",
-                            event.IsActive === 'Yes' ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            event.IsActive === 'Yes' ? "bg-rose-50 text-rose-700 border-rose-200" : 
+                            event.IsActive === 'No' ? "bg-amber-50 text-amber-700 border-amber-200" :
+                            "bg-emerald-50 text-emerald-700 border-emerald-200"
                           )}>
-                            {event.IsActive === 'Yes' ? 'ยังดื่ม/สูบอยู่' : 'เลิกแล้ว'}
+                            {event.IsActive === 'Yes' ? 'ยังดื่ม/สูบอยู่' : 
+                             event.IsActive === 'No' ? 'เลิกแล้ว' : 'ไม่เคย'}
                           </span>
                         )}
                       </div>
@@ -712,13 +720,13 @@ export default function HealthEvents() {
                           <span className="flex-1">{event.RelatedMedications}</span>
                         </div>
                       )}
-                      {event.Frequency && ['Alcohol', 'Smoking'].includes(event.Type) && (
+                      {event.Frequency && event.IsActive !== 'Never' && ['Alcohol', 'Smoking'].includes(event.Type) && (
                         <div className="text-sm text-slate-600 mb-1 flex items-start gap-2">
                           <span className="font-medium text-slate-700 whitespace-nowrap">ความถี่:</span>
                           <span className="flex-1">{event.Frequency}</span>
                         </div>
                       )}
-                      {event.Quantity && ['Alcohol', 'Smoking'].includes(event.Type) && (
+                      {event.Quantity && event.IsActive !== 'Never' && ['Alcohol', 'Smoking'].includes(event.Type) && (
                         <div className="text-sm text-slate-600 mb-1 flex items-start gap-2">
                           <span className="font-medium text-slate-700 whitespace-nowrap">ปริมาณ:</span>
                           <span className="flex-1">{event.Quantity}</span>
