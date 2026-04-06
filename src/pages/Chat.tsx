@@ -196,14 +196,15 @@ export default function Chat() {
       // Fetch health context from Firestore for the active profile
       let healthContext = "No health data available.";
       try {
-        const [vitalsSnap, labsSnap, medsSnap, historySnap, activitiesSnap, eventsSnap, notesSnap] = await Promise.all([
+        const [vitalsSnap, labsSnap, medsSnap, historySnap, activitiesSnap, eventsSnap, notesSnap, diagnosticsSnap] = await Promise.all([
           getDocs(query(collection(db, 'Vitals'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'Vitals')),
           getDocs(query(collection(db, 'LabResults'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'LabResults')),
           getDocs(query(collection(db, 'Medications'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'Medications')),
           getDocs(query(collection(db, 'FamilyHistory'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'FamilyHistory')),
           getDocs(query(collection(db, 'Activities'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'Activities')),
           getDocs(query(collection(db, 'HealthEvents'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'HealthEvents')),
-          getDocs(query(collection(db, 'Notes'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'Notes'))
+          getDocs(query(collection(db, 'Notes'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'Notes')),
+          getDocs(query(collection(db, 'Diagnostics'), where('profileId', '==', activeProfile.id))).catch(err => handleFirestoreError(err, OperationType.GET, 'Diagnostics'))
         ]) as any[];
 
         const vitals = vitalsSnap.docs.map((d: any) => d.data());
@@ -232,6 +233,7 @@ export default function Chat() {
           };
         });
         const notes = notesSnap.docs.map((d: any) => d.data());
+        const diagnostics = diagnosticsSnap.docs.map((d: any) => d.data());
 
         healthContext = `
 Profile Name: ${activeProfile.name}
@@ -254,6 +256,9 @@ ${JSON.stringify(activities, null, 2)}
 
 All Health Events (Historical Data):
 ${JSON.stringify(events, null, 2)}
+
+All Diagnostics & EKG (Historical Data):
+${JSON.stringify(diagnostics, null, 2)}
 
 All Notes (Historical Data):
 ${JSON.stringify(notes, null, 2)}

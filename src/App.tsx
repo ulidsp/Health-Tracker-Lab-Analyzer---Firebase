@@ -11,6 +11,7 @@ import HealthEvents from './pages/HealthEvents';
 import Notes from './pages/Notes';
 import FamilyHistory from './pages/FamilyHistory';
 import Activities from './pages/Activities';
+import Diagnostics from './pages/Diagnostics';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
 import Profiles from './pages/Profiles';
@@ -38,6 +39,7 @@ export default function App() {
               <Route path="activities" element={<Activities />} />
               <Route path="family-history" element={<FamilyHistory />} />
               <Route path="events" element={<HealthEvents />} />
+              <Route path="diagnostics" element={<Diagnostics />} />
               <Route path="notes" element={<Notes />} />
               <Route path="chat" element={<Chat />} />
               <Route path="profile" element={<Profile />} />

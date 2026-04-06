@@ -130,22 +130,22 @@ service cloud.firestore {
     match /{collectionName}/{docId} {
       // List of collections that follow profile-based access
       allow read: if isAuthenticated() && 
-                  collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs', 'Notes'] &&
+                  collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs', 'Notes', 'Diagnostics'] &&
                   isProfileViewer(resource.data.profileId);
       
       allow create: if isAuthenticated() && 
-                    collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs', 'Notes'] &&
+                    collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs', 'Notes', 'Diagnostics'] &&
                     isValidHealthData(request.resource.data) &&
                     isProfileEditor(request.resource.data.profileId);
       
       allow update: if isAuthenticated() && 
-                    collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs', 'Notes'] &&
+                    collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs', 'Notes', 'Diagnostics'] &&
                     isValidHealthData(request.resource.data) &&
                     isProfileEditor(resource.data.profileId) &&
                     request.resource.data.profileId == resource.data.profileId; // profileId is immutable
       
       allow delete: if isAuthenticated() && 
-                    collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs', 'Notes'] &&
+                    collectionName in ['Vitals', 'LabResults', 'Medications', 'HealthEvents', 'FamilyHistory', 'Activities', 'ChatLogs', 'Notes', 'Diagnostics'] &&
                     isProfileEditor(resource.data.profileId);
     }
   }

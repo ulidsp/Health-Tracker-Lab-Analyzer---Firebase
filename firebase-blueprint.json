@@ -141,6 +141,26 @@
         "content": { "type": "string" }
       },
       "required": ["profileId", "userId", "date", "title"]
+    },
+    "Diagnostics": {
+      "title": "Diagnostics",
+      "description": "Diagnostic tests and EKG records.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string" },
+        "userId": { "type": "string" },
+        "Date": { "type": "string", "format": "date" },
+        "Type": { "type": "string" },
+        "HeartRate": { "type": "string" },
+        "Rhythm": { "type": "string" },
+        "PRInterval": { "type": "string" },
+        "QRSDuration": { "type": "string" },
+        "QTc": { "type": "string" },
+        "Axis": { "type": "string" },
+        "Interpretation": { "type": "string" },
+        "Notes": { "type": "string" }
+      },
+      "required": ["profileId", "userId", "Date", "Type"]
     }
   },
   "firestore": {
@@ -152,6 +172,7 @@
     "/FamilyHistory/{historyId}": { "schema": "FamilyHistory", "description": "Family medical history" },
     "/Activities/{activityId}": { "schema": "Activities", "description": "Physical activity logs" },
     "/ChatLogs/{logId}": { "schema": "ChatLogs", "description": "AI assistant chat logs" },
-    "/Notes/{noteId}": { "schema": "Notes", "description": "General notes and records" }
+    "/Notes/{noteId}": { "schema": "Notes", "description": "General notes and records" },
+    "/Diagnostics/{diagnosticId}": { "schema": "Diagnostics", "description": "Diagnostic tests and EKG records" }
   }
 }

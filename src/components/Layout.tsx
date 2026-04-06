@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
-import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart, ArrowUpToLine, ArrowUp, ArrowDown, ActivitySquare, Users, UserPlus, ChevronDown, Copy, Check, Home, StickyNote } from 'lucide-react';
+import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart, ArrowUpToLine, ArrowUp, ArrowDown, ActivitySquare, Users, UserPlus, ChevronDown, Copy, Check, Home, StickyNote, HeartPulse } from 'lucide-react';
 import clsx from 'clsx';
 import { db } from '../firebase';
 import { collection, getDocs } from 'firebase/firestore';
@@ -38,6 +38,7 @@ export default function Layout() {
     { path: '/activities', label: 'Activities', icon: ActivitySquare },
     { path: '/family-history', label: 'Family History', icon: Users },
     { path: '/events', label: 'Health Events', icon: CalendarHeart },
+    { path: '/diagnostics', label: 'Diagnostics', icon: HeartPulse },
     { path: '/notes', label: 'Notes', icon: StickyNote },
     { path: '/chat', label: 'AI Assistant', icon: MessageSquare },
     { path: '/profiles', label: 'Manage Profiles', icon: Users },
