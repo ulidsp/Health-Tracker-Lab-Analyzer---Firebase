@@ -150,18 +150,29 @@ export default function Diagnostics() {
       const { analyzeImageObject } = await import('../utils/gemini');
       
       const prompt = `
-        Analyze this EKG/ECG image and extract the following clinical data.
+        Analyze this EKG/ECG image thoroughly.
+        CRITICAL INSTRUCTION: DO NOT just read the machine-printed text at the top. You MUST visually analyze the actual EKG waveforms (the graphs) across all leads.
+        Look for and report on:
+        - P wave morphology and presence
+        - RR interval regularity (arrhythmias)
+        - ST segment elevation or depression
+        - T wave inversions or abnormalities
+        - Any signs of blocks, hypertrophy, or ischemia based on the visual graph.
+        
+        Extract the standard metrics if visible, but prioritize your visual analysis of the graph for the Interpretation and Notes.
+        
         Return ONLY a JSON object with these exact keys (no markdown, no extra text):
         {
           "HeartRate": "string (e.g., '75 bpm')",
-          "Rhythm": "string (e.g., 'Normal Sinus Rhythm')",
+          "Rhythm": "string (e.g., 'Normal Sinus Rhythm, based on visual check of P waves and QRS')",
           "PRInterval": "string (e.g., '160 ms')",
           "QRSDuration": "string (e.g., '90 ms')",
           "QTc": "string (e.g., '410 ms')",
           "Axis": "string (e.g., 'Normal Axis')",
-          "Interpretation": "string (The overall diagnosis or interpretation printed on the EKG or your analysis)"
+          "Interpretation": "string (Your detailed visual analysis of the waveforms, e.g., 'ST elevation in leads V1-V3 indicating anterior STEMI. T wave inversion in lead aVL...')",
+          "Notes": "string (Any additional findings from the graph, or discrepancies between the printed text and your visual analysis)"
         }
-        If a value is not visible or cannot be determined, return an empty string "" for that key.
+        If a numerical value is not printed and cannot be estimated, return an empty string "" for that key.
       `;
 
       const result = await analyzeImageObject(file, prompt, selectedModel);
@@ -169,7 +180,7 @@ export default function Diagnostics() {
       setNewRecord(prev => ({
         ...prev,
         Date: selectedDate,
-        Notes: selectedNotes,
+        Notes: result.Notes ? (selectedNotes ? `${selectedNotes}\n\nAI Visual Analysis:\n${result.Notes}` : result.Notes) : selectedNotes,
         HeartRate: result.HeartRate || prev.HeartRate,
         Rhythm: result.Rhythm || prev.Rhythm,
         PRInterval: result.PRInterval || prev.PRInterval,
