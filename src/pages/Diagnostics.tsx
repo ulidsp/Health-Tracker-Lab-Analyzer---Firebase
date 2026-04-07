@@ -22,6 +22,8 @@ export default function Diagnostics() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+  const [selectedDate, setSelectedDate] = useState(getThaiDateString());
+  const [selectedNotes, setSelectedNotes] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const defaultRecord = {
@@ -166,6 +168,8 @@ export default function Diagnostics() {
       
       setNewRecord(prev => ({
         ...prev,
+        Date: selectedDate,
+        Notes: selectedNotes,
         HeartRate: result.HeartRate || prev.HeartRate,
         Rhythm: result.Rhythm || prev.Rhythm,
         PRInterval: result.PRInterval || prev.PRInterval,
@@ -249,71 +253,102 @@ export default function Diagnostics() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-rose-100 text-rose-600 rounded-xl">
-            <HeartPulse className="w-6 h-6" />
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-rose-100 text-rose-600 rounded-xl">
+              <HeartPulse className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">Diagnostics & EKG</h1>
+              <p className="text-slate-600">ผลการตรวจพิเศษและคลื่นไฟฟ้าหัวใจ</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Diagnostics & EKG</h1>
-            <p className="text-slate-600">ผลการตรวจพิเศษและคลื่นไฟฟ้าหัวใจ</p>
-          </div>
+          
+          {canEdit && (
+            <button
+              onClick={() => {
+                setEditingRecord(null);
+                setNewRecord(defaultRecord);
+                setConfirmDelete(null);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors text-sm shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Manual Entry
+            </button>
+          )}
         </div>
         
         {canEdit && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                disabled={analyzing || saving}
-                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50 max-w-[200px] truncate"
-              >
-                <option value="gemini-3.1-pro-preview">(0) Gemini 3.1 Pro Preview (ฉลาดที่ 1)</option>
-                <option value="gemini-3-pro-preview">(0) Gemini 3.0 Pro Preview (ฉลาดที่ 2)</option>
-                <option value="gemini-2.5-pro">(0) Gemini 2.5 Pro (ฉลาดที่ 3)</option>
-                <option value="gemini-pro-latest">(0) Gemini Pro (Latest Stable) (ฉลาดที่ 4)</option>
-                <option value="gemini-3-flash-preview">(20) Gemini 3 Flash Preview (ฉลาดที่ 5)</option>
-                <option value="gemini-3.1-flash-lite-preview">(500) Gemini 3.1 Flash Lite Preview (ฉลาดที่ 6) (Default)</option>
-                <option value="gemini-flash-latest">(20) Gemini Flash Latest (ฉลาดที่ 7)</option>
-                <option value="gemini-2.5-flash">(20) Gemini 2.5 Flash (ฉลาดที่ 8)</option>
-                <option value="gemini-flash-lite-latest">(500) Gemini Flash Lite Latest (ฉลาดที่ 9)</option>
-                <option value="gemini-2.5-flash-lite">(20) Gemini 2.5 Flash Lite (ฉลาดที่ 10)</option>
-              </select>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={analyzing}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors font-medium disabled:opacity-50"
-                >
-                  {analyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
-                  <span className="hidden sm:inline">{analyzing ? 'Analyzing...' : 'Scan EKG'}</span>
-                </button>
+          <div className="p-6 border-b border-slate-100 bg-white">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 space-y-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      disabled={analyzing || saving}
+                      className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50 max-w-[200px] truncate"
+                    >
+                      <option value="gemini-3.1-pro-preview">(0) Gemini 3.1 Pro Preview (ฉลาดที่ 1)</option>
+                      <option value="gemini-3-pro-preview">(0) Gemini 3.0 Pro Preview (ฉลาดที่ 2)</option>
+                      <option value="gemini-2.5-pro">(0) Gemini 2.5 Pro (ฉลาดที่ 3)</option>
+                      <option value="gemini-pro-latest">(0) Gemini Pro (Latest Stable) (ฉลาดที่ 4)</option>
+                      <option value="gemini-3-flash-preview">(20) Gemini 3 Flash Preview (ฉลาดที่ 5)</option>
+                      <option value="gemini-3.1-flash-lite-preview">(500) Gemini 3.1 Flash Lite Preview (ฉลาดที่ 6) (Default)</option>
+                      <option value="gemini-flash-latest">(20) Gemini Flash Latest (ฉลาดที่ 7)</option>
+                      <option value="gemini-2.5-flash">(20) Gemini 2.5 Flash (ฉลาดที่ 8)</option>
+                      <option value="gemini-flash-lite-latest">(500) Gemini Flash Lite Latest (ฉลาดที่ 9)</option>
+                      <option value="gemini-2.5-flash-lite">(20) Gemini 2.5 Flash Lite (ฉลาดที่ 10)</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Test Date:</label>
+                    <input 
+                      type="date" 
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      disabled={analyzing || saving}
+                      className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Notes:</label>
+                  <input 
+                    type="text" 
+                    value={selectedNotes}
+                    onChange={(e) => setSelectedNotes(e.target.value)}
+                    disabled={analyzing || saving}
+                    placeholder="e.g. Routine checkup, Post-surgery EKG"
+                    className="flex-1 px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
               </div>
               
-              <button
-                onClick={() => {
-                  setEditingRecord(null);
-                  setNewRecord(defaultRecord);
-                  setConfirmDelete(null);
-                  setIsModalOpen(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium shadow-sm shadow-indigo-200"
-              >
-                <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">Add Manual</span>
-              </button>
+              <div className="flex items-end">
+                <div className="relative w-full md:w-auto">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={analyzing}
+                    className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 shadow-sm shadow-indigo-200"
+                  >
+                    {analyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                    <span>{analyzing ? 'Analyzing...' : 'Scan EKG'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -425,7 +460,7 @@ export default function Diagnostics() {
                     {canEdit && (
                       <button
                         onClick={() => startEdit(record)}
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
                         title="Edit Record"
                       >
                         <Edit2 className="w-5 h-5" />
@@ -486,9 +521,9 @@ export default function Diagnostics() {
 
       {/* Modal for Add/Edit */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-8">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 flex-shrink-0">
               <h2 className="text-xl font-bold text-slate-800">
                 {editingRecord ? 'Edit Diagnostic Record' : 'Add Diagnostic Record'}
               </h2>
@@ -500,8 +535,8 @@ export default function Diagnostics() {
               </button>
             </div>
             
-            <form onSubmit={handleSave} className="p-6">
-              <div className="space-y-6">
+            <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 overflow-y-auto space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date (วันที่ตรวจ)</label>
@@ -610,7 +645,7 @@ export default function Diagnostics() {
                 </div>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-between gap-4 sticky bottom-0 bg-white">
+              <div className="p-6 border-t border-slate-100 flex-shrink-0 flex flex-col-reverse sm:flex-row items-center justify-between gap-4 bg-slate-50 rounded-b-2xl">
                 {editingRecord ? (
                   <div className="w-full sm:w-auto">
                     {confirmDelete === editingRecord.id ? (
@@ -652,7 +687,7 @@ export default function Diagnostics() {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 sm:flex-none px-6 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
+                    className="flex-1 sm:flex-none px-6 py-2 text-slate-600 font-medium hover:bg-slate-200 bg-white border border-slate-200 rounded-xl transition-colors"
                   >
                     Cancel
                   </button>
