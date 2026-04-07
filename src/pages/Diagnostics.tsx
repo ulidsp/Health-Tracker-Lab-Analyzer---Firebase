@@ -22,6 +22,7 @@ export default function Diagnostics() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+  const [selectedDiagnosticType, setSelectedDiagnosticType] = useState('EKG');
   const [selectedDate, setSelectedDate] = useState(getThaiDateString());
   const [selectedNotes, setSelectedNotes] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -150,27 +151,24 @@ export default function Diagnostics() {
       const { analyzeImageObject } = await import('../utils/gemini');
       
       const prompt = `
-        Analyze this EKG/ECG image thoroughly.
-        CRITICAL INSTRUCTION: DO NOT just read the machine-printed text at the top. You MUST visually analyze the actual EKG waveforms (the graphs) across all leads.
-        Look for and report on:
-        - P wave morphology and presence
-        - RR interval regularity (arrhythmias)
-        - ST segment elevation or depression
-        - T wave inversions or abnormalities
-        - Any signs of blocks, hypertrophy, or ischemia based on the visual graph.
+        Analyze this medical image/report. The user indicated it is a: ${selectedDiagnosticType}.
         
-        Extract the standard metrics if visible, but prioritize your visual analysis of the graph for the Interpretation and Notes.
+        CRITICAL INSTRUCTIONS:
+        1. Visually analyze the image or read the report text thoroughly.
+        2. If it's an EKG/ECG, extract the standard metrics (Heart Rate, Rhythm, PR Interval, QRS, QTc, Axis) and provide a detailed visual interpretation of the waveforms (P waves, ST segments, T waves, etc.).
+        3. If it's an X-Ray, CT Scan, MRI, Ultrasound, Bone Density scan, or other imaging, focus entirely on the 'Interpretation' (main findings, impressions, abnormalities) and 'Notes'. Leave EKG-specific fields empty ("").
         
         Return ONLY a JSON object with these exact keys (no markdown, no extra text):
         {
-          "HeartRate": "string (e.g., '75 bpm')",
-          "Rhythm": "string (e.g., 'Normal Sinus Rhythm, based on visual check of P waves and QRS')",
-          "PRInterval": "string (e.g., '160 ms')",
-          "QRSDuration": "string (e.g., '90 ms')",
-          "QTc": "string (e.g., '410 ms')",
-          "Axis": "string (e.g., 'Normal Axis')",
-          "Interpretation": "string (Your detailed visual analysis of the waveforms, e.g., 'ST elevation in leads V1-V3 indicating anterior STEMI. T wave inversion in lead aVL...')",
-          "Notes": "string (Any additional findings from the graph, or discrepancies between the printed text and your visual analysis)"
+          "Type": "string (Confirm or correct the diagnostic type, e.g., 'EKG', 'Chest X-Ray', 'Brain MRI', 'Bone Density Scan')",
+          "HeartRate": "string (EKG only, else '')",
+          "Rhythm": "string (EKG only, else '')",
+          "PRInterval": "string (EKG only, else '')",
+          "QRSDuration": "string (EKG only, else '')",
+          "QTc": "string (EKG only, else '')",
+          "Axis": "string (EKG only, else '')",
+          "Interpretation": "string (Detailed findings, impression, or visual analysis)",
+          "Notes": "string (Any additional notes, technical quality, or discrepancies)"
         }
         If a numerical value is not printed and cannot be estimated, return an empty string "" for that key.
       `;
@@ -180,6 +178,7 @@ export default function Diagnostics() {
       setNewRecord(prev => ({
         ...prev,
         Date: selectedDate,
+        Type: result.Type || selectedDiagnosticType,
         Notes: result.Notes ? (selectedNotes ? `${selectedNotes}\n\nAI Visual Analysis:\n${result.Notes}` : result.Notes) : selectedNotes,
         HeartRate: result.HeartRate || prev.HeartRate,
         Rhythm: result.Rhythm || prev.Rhythm,
@@ -268,11 +267,11 @@ export default function Diagnostics() {
         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-rose-100 text-rose-600 rounded-xl">
-              <HeartPulse className="w-6 h-6" />
+              <Activity className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">Diagnostics & EKG</h1>
-              <p className="text-slate-600">ผลการตรวจพิเศษและคลื่นไฟฟ้าหัวใจ</p>
+              <h1 className="text-2xl font-bold text-slate-800">Imaging & Diagnostics</h1>
+              <p className="text-slate-600">ภาพถ่ายทางการแพทย์และการตรวจพิเศษ</p>
             </div>
           </div>
           
@@ -298,12 +297,30 @@ export default function Diagnostics() {
               <div className="flex-1 space-y-4">
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Type:</label>
+                    <select
+                      value={selectedDiagnosticType}
+                      onChange={(e) => setSelectedDiagnosticType(e.target.value)}
+                      disabled={analyzing || saving}
+                      className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                    >
+                      <option value="EKG">EKG / ECG</option>
+                      <option value="X-Ray">X-Ray</option>
+                      <option value="CT Scan">CT Scan</option>
+                      <option value="MRI">MRI / MRA</option>
+                      <option value="Ultrasound">Ultrasound</option>
+                      <option value="Bone Density">Bone Density (มวลกระดูก)</option>
+                      <option value="Bone Scan">Bone Scan (สแกนกระดูก)</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
                     <select
                       value={selectedModel}
                       onChange={(e) => setSelectedModel(e.target.value)}
                       disabled={analyzing || saving}
-                      className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50 max-w-[200px] truncate"
+                      className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50 max-w-[150px] truncate"
                     >
                       <option value="gemini-3.1-pro-preview">(0) Gemini 3.1 Pro Preview (ฉลาดที่ 1)</option>
                       <option value="gemini-3-pro-preview">(0) Gemini 3.0 Pro Preview (ฉลาดที่ 2)</option>
@@ -318,7 +335,7 @@ export default function Diagnostics() {
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Test Date:</label>
+                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Date:</label>
                     <input 
                       type="date" 
                       value={selectedDate}
@@ -335,7 +352,7 @@ export default function Diagnostics() {
                     value={selectedNotes}
                     onChange={(e) => setSelectedNotes(e.target.value)}
                     disabled={analyzing || saving}
-                    placeholder="e.g. Routine checkup, Post-surgery EKG"
+                    placeholder="e.g. Routine checkup, Post-surgery"
                     className="flex-1 px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
                   />
                 </div>
@@ -356,7 +373,7 @@ export default function Diagnostics() {
                     className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 shadow-sm shadow-indigo-200"
                   >
                     {analyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
-                    <span>{analyzing ? 'Analyzing...' : 'Scan EKG'}</span>
+                    <span>{analyzing ? 'Analyzing...' : 'Scan Image'}</span>
                   </button>
                 </div>
               </div>
@@ -447,7 +464,7 @@ export default function Diagnostics() {
             <h3 className="text-lg font-medium text-slate-900 mb-1">No records found</h3>
             <p className="text-slate-500">
               {records.length === 0 
-                ? "ยังไม่มีประวัติการตรวจ EKG กดปุ่ม Scan EKG หรือ Add Manual เพื่อเพิ่มข้อมูล" 
+                ? "ยังไม่มีประวัติการตรวจ กดปุ่ม Scan Image หรือ Add Manual เพื่อเพิ่มข้อมูล" 
                 : "ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา"}
             </p>
           </div>
@@ -479,32 +496,34 @@ export default function Diagnostics() {
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4 bg-slate-50 p-4 rounded-xl">
-                    <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Heart Rate</p>
-                      <p className="font-medium text-slate-800">{record.HeartRate || '-'}</p>
+                  {record.Type && (record.Type.includes('EKG') || record.Type.includes('ECG')) && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4 bg-slate-50 p-4 rounded-xl">
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Heart Rate</p>
+                        <p className="font-medium text-slate-800">{record.HeartRate || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Rhythm</p>
+                        <p className="font-medium text-slate-800"><Highlight text={record.Rhythm || '-'} query={searchQuery} /></p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Axis</p>
+                        <p className="font-medium text-slate-800">{record.Axis || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">PR Interval</p>
+                        <p className="font-medium text-slate-800">{record.PRInterval || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">QRS Duration</p>
+                        <p className="font-medium text-slate-800">{record.QRSDuration || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">QTc</p>
+                        <p className="font-medium text-slate-800">{record.QTc || '-'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Rhythm</p>
-                      <p className="font-medium text-slate-800"><Highlight text={record.Rhythm || '-'} query={searchQuery} /></p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Axis</p>
-                      <p className="font-medium text-slate-800">{record.Axis || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">PR Interval</p>
-                      <p className="font-medium text-slate-800">{record.PRInterval || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">QRS Duration</p>
-                      <p className="font-medium text-slate-800">{record.QRSDuration || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">QTc</p>
-                      <p className="font-medium text-slate-800">{record.QTc || '-'}</p>
-                    </div>
-                  </div>
+                  )}
 
                   {record.Interpretation && (
                     <div className="mb-3">
@@ -567,73 +586,75 @@ export default function Diagnostics() {
                       value={newRecord.Type}
                       onChange={e => setNewRecord({...newRecord, Type: e.target.value})}
                       className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="e.g., EKG, X-Ray"
+                      placeholder="e.g., EKG, X-Ray, MRI"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Heart Rate</label>
-                    <input 
-                      type="text" 
-                      value={newRecord.HeartRate}
-                      onChange={e => setNewRecord({...newRecord, HeartRate: e.target.value})}
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="e.g., 75 bpm"
-                    />
+                {newRecord.Type && (newRecord.Type.includes('EKG') || newRecord.Type.includes('ECG')) && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Heart Rate</label>
+                      <input 
+                        type="text" 
+                        value={newRecord.HeartRate}
+                        onChange={e => setNewRecord({...newRecord, HeartRate: e.target.value})}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., 75 bpm"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Rhythm</label>
+                      <input 
+                        type="text" 
+                        value={newRecord.Rhythm}
+                        onChange={e => setNewRecord({...newRecord, Rhythm: e.target.value})}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., Normal Sinus Rhythm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">PR Interval</label>
+                      <input 
+                        type="text" 
+                        value={newRecord.PRInterval}
+                        onChange={e => setNewRecord({...newRecord, PRInterval: e.target.value})}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., 160 ms"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">QRS Duration</label>
+                      <input 
+                        type="text" 
+                        value={newRecord.QRSDuration}
+                        onChange={e => setNewRecord({...newRecord, QRSDuration: e.target.value})}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., 90 ms"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">QTc</label>
+                      <input 
+                        type="text" 
+                        value={newRecord.QTc}
+                        onChange={e => setNewRecord({...newRecord, QTc: e.target.value})}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., 410 ms"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Axis</label>
+                      <input 
+                        type="text" 
+                        value={newRecord.Axis}
+                        onChange={e => setNewRecord({...newRecord, Axis: e.target.value})}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        placeholder="e.g., Normal Axis"
+                      />
+                    </div>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Rhythm</label>
-                    <input 
-                      type="text" 
-                      value={newRecord.Rhythm}
-                      onChange={e => setNewRecord({...newRecord, Rhythm: e.target.value})}
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="e.g., Normal Sinus Rhythm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">PR Interval</label>
-                    <input 
-                      type="text" 
-                      value={newRecord.PRInterval}
-                      onChange={e => setNewRecord({...newRecord, PRInterval: e.target.value})}
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="e.g., 160 ms"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">QRS Duration</label>
-                    <input 
-                      type="text" 
-                      value={newRecord.QRSDuration}
-                      onChange={e => setNewRecord({...newRecord, QRSDuration: e.target.value})}
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="e.g., 90 ms"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">QTc</label>
-                    <input 
-                      type="text" 
-                      value={newRecord.QTc}
-                      onChange={e => setNewRecord({...newRecord, QTc: e.target.value})}
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="e.g., 410 ms"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Axis</label>
-                    <input 
-                      type="text" 
-                      value={newRecord.Axis}
-                      onChange={e => setNewRecord({...newRecord, Axis: e.target.value})}
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="e.g., Normal Axis"
-                    />
-                  </div>
-                </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Interpretation (คำวินิจฉัย)</label>
