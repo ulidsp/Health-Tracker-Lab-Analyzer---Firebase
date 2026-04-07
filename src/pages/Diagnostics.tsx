@@ -150,28 +150,57 @@ export default function Diagnostics() {
     try {
       const { analyzeImageObject } = await import('../utils/gemini');
       
-      const prompt = `
-        Analyze this medical image/report. The user indicated it is a: ${selectedDiagnosticType}.
-        
-        CRITICAL INSTRUCTIONS:
-        1. Visually analyze the image or read the report text thoroughly.
-        2. If it's an EKG/ECG, extract the standard metrics (Heart Rate, Rhythm, PR Interval, QRS, QTc, Axis) and provide a detailed visual interpretation of the waveforms (P waves, ST segments, T waves, etc.).
-        3. If it's an X-Ray, CT Scan, MRI, Ultrasound, Bone Density scan, or other imaging, focus entirely on the 'Interpretation' (main findings, impressions, abnormalities) and 'Notes'. Leave EKG-specific fields empty ("").
-        
-        Return ONLY a JSON object with these exact keys (no markdown, no extra text):
-        {
-          "Type": "string (Confirm or correct the diagnostic type, e.g., 'EKG', 'Chest X-Ray', 'Brain MRI', 'Bone Density Scan')",
-          "HeartRate": "string (EKG only, else '')",
-          "Rhythm": "string (EKG only, else '')",
-          "PRInterval": "string (EKG only, else '')",
-          "QRSDuration": "string (EKG only, else '')",
-          "QTc": "string (EKG only, else '')",
-          "Axis": "string (EKG only, else '')",
-          "Interpretation": "string (Detailed findings, impression, or visual analysis)",
-          "Notes": "string (Any additional notes, technical quality, or discrepancies)"
-        }
-        If a numerical value is not printed and cannot be estimated, return an empty string "" for that key.
-      `;
+      let prompt = '';
+      
+      if (selectedDiagnosticType === 'EKG') {
+        prompt = `
+          Analyze this EKG/ECG image thoroughly.
+          
+          CRITICAL INSTRUCTION: DO NOT just read the machine-printed text at the top. You MUST visually analyze the actual EKG waveforms (the graphs) across all leads.
+          Look for and report on:
+          - P wave morphology and presence
+          - RR interval regularity (arrhythmias)
+          - ST segment elevation or depression
+          - T wave inversions or abnormalities
+          - Any signs of blocks, hypertrophy, or ischemia based on the visual graph.
+          
+          Extract the standard metrics if visible, but prioritize your visual analysis of the graph for the Interpretation and Notes.
+          
+          Return ONLY a JSON object with these exact keys (no markdown, no extra text):
+          {
+            "Type": "EKG",
+            "HeartRate": "string (e.g., '75 bpm')",
+            "Rhythm": "string (e.g., 'Normal Sinus Rhythm, based on visual check of P waves and QRS')",
+            "PRInterval": "string (e.g., '160 ms')",
+            "QRSDuration": "string (e.g., '90 ms')",
+            "QTc": "string (e.g., '410 ms')",
+            "Axis": "string (e.g., 'Normal Axis')",
+            "Interpretation": "string (Your detailed visual analysis of the waveforms, e.g., 'ST elevation in leads V1-V3 indicating anterior STEMI. T wave inversion in lead aVL...')",
+            "Notes": "string (Any additional findings from the graph, or discrepancies between the printed text and your visual analysis)"
+          }
+          If a numerical value is not printed and cannot be estimated, return an empty string "" for that key.
+        `;
+      } else {
+        prompt = `
+          Analyze this medical image/report. The user indicated it is a: ${selectedDiagnosticType}.
+          
+          CRITICAL INSTRUCTIONS:
+          Visually analyze the image or read the report text thoroughly. Focus entirely on the 'Interpretation' (main findings, impressions, abnormalities) and 'Notes'.
+          
+          Return ONLY a JSON object with these exact keys (no markdown, no extra text):
+          {
+            "Type": "string (Confirm or correct the diagnostic type, e.g., 'Chest X-Ray', 'Brain MRI', 'Bone Density Scan')",
+            "HeartRate": "",
+            "Rhythm": "",
+            "PRInterval": "",
+            "QRSDuration": "",
+            "QTc": "",
+            "Axis": "",
+            "Interpretation": "string (Detailed findings, impression, or visual analysis)",
+            "Notes": "string (Any additional notes, technical quality, or discrepancies)"
+          }
+        `;
+      }
 
       const result = await analyzeImageObject(file, prompt, selectedModel);
       
