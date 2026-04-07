@@ -21,7 +21,7 @@ export default function Diagnostics() {
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-preview');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const defaultRecord = {
@@ -261,37 +261,60 @@ export default function Diagnostics() {
         </div>
         
         {canEdit && (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={analyzing}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors font-medium disabled:opacity-50"
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={analyzing || saving}
+                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50 max-w-[200px] truncate"
               >
-                {analyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
-                <span className="hidden sm:inline">{analyzing ? 'Analyzing...' : 'Scan EKG'}</span>
-              </button>
+                <option value="gemini-3.1-pro-preview">(0) Gemini 3.1 Pro Preview (ฉลาดที่ 1)</option>
+                <option value="gemini-3-pro-preview">(0) Gemini 3.0 Pro Preview (ฉลาดที่ 2)</option>
+                <option value="gemini-2.5-pro">(0) Gemini 2.5 Pro (ฉลาดที่ 3)</option>
+                <option value="gemini-pro-latest">(0) Gemini Pro (Latest Stable) (ฉลาดที่ 4)</option>
+                <option value="gemini-3-flash-preview">(20) Gemini 3 Flash Preview (ฉลาดที่ 5)</option>
+                <option value="gemini-3.1-flash-lite-preview">(500) Gemini 3.1 Flash Lite Preview (ฉลาดที่ 6) (Default)</option>
+                <option value="gemini-flash-latest">(20) Gemini Flash Latest (ฉลาดที่ 7)</option>
+                <option value="gemini-2.5-flash">(20) Gemini 2.5 Flash (ฉลาดที่ 8)</option>
+                <option value="gemini-flash-lite-latest">(500) Gemini Flash Lite Latest (ฉลาดที่ 9)</option>
+                <option value="gemini-2.5-flash-lite">(20) Gemini 2.5 Flash Lite (ฉลาดที่ 10)</option>
+              </select>
             </div>
             
-            <button
-              onClick={() => {
-                setEditingRecord(null);
-                setNewRecord(defaultEvent);
-                setConfirmDelete(null);
-                setIsModalOpen(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium shadow-sm shadow-indigo-200"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">Add Manual</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={analyzing}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors font-medium disabled:opacity-50"
+                >
+                  {analyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
+                  <span className="hidden sm:inline">{analyzing ? 'Analyzing...' : 'Scan EKG'}</span>
+                </button>
+              </div>
+              
+              <button
+                onClick={() => {
+                  setEditingRecord(null);
+                  setNewRecord(defaultRecord);
+                  setConfirmDelete(null);
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium shadow-sm shadow-indigo-200"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="hidden sm:inline">Add Manual</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
