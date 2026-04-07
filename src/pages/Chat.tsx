@@ -546,19 +546,27 @@ ${JSON.stringify(notes, null, 2)}
 
       {/* Input Area */}
       <div className="p-4 border-t border-slate-200 bg-white">
-        <form onSubmit={handleSend} className="flex gap-3">
-          <input
-            type="text"
+        <form onSubmit={handleSend} className="flex gap-3 items-end">
+          <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                if (input.trim() && !isLoading) {
+                  handleSend(e as unknown as React.FormEvent);
+                }
+              }
+            }}
             placeholder={`Ask about ${activeProfile.name}'s health...`}
             disabled={isLoading}
-            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+            rows={5}
+            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50 resize-none"
           />
           <button
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center h-[50px]"
           >
             <Send className="w-5 h-5" />
           </button>
