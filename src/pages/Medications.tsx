@@ -88,7 +88,7 @@ export default function Medications() {
         - MedicationName: The name of the medication (e.g., "Paracetamol", "Amlodipine").
         - Dosage: The strength or dosage per unit (e.g., "500 mg", "10 mg").
         - Frequency: Instructions on how often to take it (e.g., "1 tablet after breakfast and dinner", "1 tab daily").
-        - Purpose: The indication or what it is used for (if available on the label, e.g., "For pain relief", "Blood pressure").
+        - Purpose: The indication or what it is used for. If it is stated on the label, use that. If it is NOT stated on the label, use your medical knowledge to provide the common purpose/indication for this medication in Thai (e.g., "ลดไข้ บรรเทาปวด", "ลดความดันโลหิต").
         - StartDate: The date the medication was prescribed or started (if available, format YYYY-MM-DD). If not available, leave empty.
         - EndDate: The date the medication should be stopped (if available, format YYYY-MM-DD). If not available, leave empty.
         - Notes: Any additional notes, warnings, or side effects mentioned on the label.
