@@ -621,12 +621,14 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
         // Criteria checks
         let isWaistHigh = false;
         const waistLimit = isMale ? 36 : (isFemale ? 32 : 34);
+        let currentWaistTarget = waistLimit;
         
         if (heightVital) {
           const heightCm = parseFloat(heightVital.Height);
           if (heightCm > 0) {
             const waistCm = waistInches * 2.54;
             isWaistHigh = waistCm >= (heightCm / 2);
+            currentWaistTarget = (heightCm / 2) / 2.54;
           } else {
             isWaistHigh = waistInches >= waistLimit;
           }
@@ -641,27 +643,48 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
         const isHdlLow = hdlVal < hdlLimit;
 
         const criteriaMet = [isWaistHigh, isBpHigh, isFbsHigh, isTgHigh, isHdlLow].filter(Boolean).length;
+        
+        const abnormalDetails: string[] = [];
+        if (isWaistHigh) {
+          abnormalDetails.push(`- อ้วนลงพุง: รอบเอวปัจจุบัน ${waistInches.toFixed(1)} นิ้ว (ควร < ${currentWaistTarget.toFixed(1)} นิ้ว) -> แนะนำ: ควบคุมอาหาร ลดไขมันหน้าท้อง และออกกำลังกายสม่ำเสมอ`);
+        }
+        if (isBpHigh) {
+          abnormalDetails.push(`- ความดันโลหิตสูง: ปัจจุบัน ${sys}/${dia} mmHg (ควร < 130/85 mmHg) -> แนะนำ: ลดอาหารเค็ม/โซเดียม ออกกำลังกาย และพักผ่อนให้เพียงพอ`);
+        }
+        if (isFbsHigh) {
+          abnormalDetails.push(`- น้ำตาลในเลือดสูง: ปัจจุบัน ${fbsVal} mg/dL (ควร < 100 mg/dL) -> แนะนำ: งดน้ำหวาน ลดคาร์โบไฮเดรตขัดสี และควบคุมน้ำหนัก`);
+        }
+        if (isTgHigh) {
+          abnormalDetails.push(`- ไตรกลีเซอไรด์สูง: ปัจจุบัน ${tgVal} mg/dL (ควร < 150 mg/dL) -> แนะนำ: ลดแป้ง น้ำตาล ของหวาน และเครื่องดื่มแอลกอฮอล์`);
+        }
+        if (isHdlLow) {
+          abnormalDetails.push(`- ไขมันดี (HDL) ต่ำ: ปัจจุบัน ${hdlVal} mg/dL (ควร >= ${hdlLimit} mg/dL) -> แนะนำ: ออกกำลังกายแบบคาร์ดิโอเพิ่มขึ้น ทานไขมันดี (เช่น ปลาทะเล ถั่ว อะโวคาโด)`);
+        }
 
         let status = '';
         let color = '';
         let advice = '';
 
         const explanation = `ภาวะระบบเผาผลาญผิดปกติ (Metabolic Syndrome) คือกลุ่มความผิดปกติที่เพิ่มความเสี่ยงโรคหัวใจ หลอดเลือดสมอง และเบาหวาน ประกอบด้วย 5 ปัจจัย:
-1. รอบเอวเกิน (อ้วนลงพุง): ไขมันสะสมในช่องท้องมาก ก่อให้เกิดการอักเสบและดื้อต่ออินซูลิน
-2. ความดันโลหิตสูง: ทำให้หลอดเลือดแข็งตัวและหัวใจทำงานหนัก เสี่ยงต่อโรคหัวใจและหลอดเลือดสมอง
-3. น้ำตาลในเลือดสูง: บ่งบอกถึงภาวะดื้อต่ออินซูลิน เสี่ยงเป็นโรคเบาหวานประเภทที่ 2
-4. ไตรกลีเซอไรด์สูง: ไขมันตัวร้ายที่สะสมในหลอดเลือด ทำให้หลอดเลือดตีบตัน
-5. HDL ต่ำ: ไขมันตัวดีที่ช่วยเก็บกวาดไขมันเลว หากมีต่ำจะทำให้การกำจัดไขมันเลวลดลง เพิ่มความเสี่ยงหลอดเลือดอุดตัน
+1. อ้วนลงพุง (รอบเอวเกินเกณฑ์)
+2. ความดันโลหิตสูง (>= 130/85 mmHg)
+3. น้ำตาลในเลือดสูง (FBS >= 100 mg/dL)
+4. ไตรกลีเซอไรด์สูง (>= 150 mg/dL)
+5. HDL ต่ำ (< 40 ชาย, < 50 หญิง)
 *หากพบความผิดปกติ 3 ข้อขึ้นไป จะถือว่ามีภาวะนี้`;
+
+        let abnormalText = abnormalDetails.length > 0 
+          ? `\n\nรายการที่พบความผิดปกติของคุณ (${criteriaMet} ข้อ):\n${abnormalDetails.join('\n')}`
+          : '';
 
         if (criteriaMet >= 3) {
           status = 'พบภาวะ (Metabolic Syndrome)';
           color = 'text-rose-600 bg-rose-50 border-rose-200';
-          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ เข้าเกณฑ์ภาวะระบบเผาผลาญผิดปกติ\n\n${explanation}\n\nคำแนะนำ: ควรพบแพทย์เพื่อประเมินความเสี่ยงและวางแผนการรักษาโดยด่วน รวมถึงควบคุมอาหารและออกกำลังกาย`;
+          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ เข้าเกณฑ์ภาวะระบบเผาผลาญผิดปกติ${abnormalText}\n\n${explanation}\n\nคำแนะนำเพิ่มเติม: ควรพบแพทย์เพื่อประเมินความเสี่ยงและวางแผนการรักษาโดยด่วน รวมถึงควบคุมอาหารและออกกำลังกาย`;
         } else if (criteriaMet > 0) {
           status = 'เริ่มมีความเสี่ยง (At Risk)';
           color = 'text-amber-600 bg-amber-50 border-amber-200';
-          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ เริ่มมีความเสี่ยง\n\n${explanation}\n\nคำแนะนำ: ควรปรับเปลี่ยนพฤติกรรม เช่น ลดอาหารหวาน/มัน และออกกำลังกาย เพื่อป้องกันไม่ให้เกิดภาวะนี้`;
+          advice = `พบความผิดปกติ ${criteriaMet} ใน 5 ข้อ เริ่มมีความเสี่ยง${abnormalText}\n\n${explanation}\n\nคำแนะนำเพิ่มเติม: ควรปรับเปลี่ยนพฤติกรรมตามคำแนะนำด้านบน เพื่อป้องกันไม่ให้เกิดภาวะนี้`;
         } else {
           status = 'ปกติ (Normal)';
           color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
