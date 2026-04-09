@@ -34,11 +34,24 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
     const isMale = profile?.gender === 'Male';
     const isFemale = profile?.gender === 'Female';
 
+    // Helper to get the latest vital sign that has a specific key
+    const getLatestVital = (key: string) => {
+      const sorted = [...vitals].sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
+      return sorted.find(v => v[key] !== undefined && v[key] !== null && v[key] !== '');
+    };
+
+    const weightVital = getLatestVital('Weight');
+    const heightVital = getLatestVital('Height');
+    const waistVital = getLatestVital('Waist');
+    const spo2Vital = getLatestVital('SpO2');
+    const tempVital = getLatestVital('Temperature');
+    const systolicVital = getLatestVital('Systolic');
+    const diastolicVital = getLatestVital('Diastolic');
+
     // 1. BMI Analysis
-    const latestVitals = vitals.length > 0 ? vitals[vitals.length - 1] : null;
-    if (latestVitals && latestVitals.Weight && latestVitals.Height) {
-      const weight = parseFloat(latestVitals.Weight);
-      const height = parseFloat(latestVitals.Height) / 100; // convert cm to m
+    if (weightVital && heightVital) {
+      const weight = parseFloat(weightVital.Weight);
+      const height = parseFloat(heightVital.Height) / 100; // convert cm to m
       const bmi = weight / (height * height);
       
       let status = '';
@@ -70,7 +83,7 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
 
       results.push({
         category: 'ดัชนีมวลกาย (BMI)',
-        date: latestVitals.Date,
+        date: weightVital.Date,
         value: bmi.toFixed(1),
         unit: 'kg/m²',
         status,
@@ -81,8 +94,8 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
     }
 
     // 1.5 Waist Circumference Analysis
-    if (latestVitals && latestVitals.Waist) {
-      const waistInches = parseFloat(latestVitals.Waist);
+    if (waistVital) {
+      const waistInches = parseFloat(waistVital.Waist);
       const waistCm = waistInches * 2.54;
       let status = '';
       let color = '';
@@ -100,8 +113,8 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
       let targetWaistByHeightInches = null;
       let recommendedMaxWaistInches = limitInches;
 
-      if (latestVitals.Height) {
-        const heightCm = parseFloat(latestVitals.Height);
+      if (heightVital) {
+        const heightCm = parseFloat(heightVital.Height);
         if (heightCm > 0) {
           whtr = waistCm / heightCm;
           isWhtrHigh = whtr >= 0.5;
@@ -143,7 +156,7 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
 
       results.push({
         category: 'รอบเอว (Waist)',
-        date: latestVitals.Date,
+        date: waistVital.Date,
         value: waistInches.toFixed(1),
         unit: 'นิ้ว',
         status,
@@ -154,8 +167,8 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
     }
 
     // 1.6 SpO2 Analysis
-    if (latestVitals && latestVitals.SpO2) {
-      const spo2 = parseFloat(latestVitals.SpO2);
+    if (spo2Vital) {
+      const spo2 = parseFloat(spo2Vital.SpO2);
       let status = '';
       let color = '';
       let icon = Activity;
@@ -177,7 +190,7 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
 
       results.push({
         category: 'ออกซิเจนในเลือด (SpO2)',
-        date: latestVitals.Date,
+        date: spo2Vital.Date,
         value: spo2.toFixed(0),
         unit: '%',
         status,
@@ -188,8 +201,8 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
     }
 
     // 1.7 Temperature Analysis
-    if (latestVitals && latestVitals.Temperature) {
-      const temp = parseFloat(latestVitals.Temperature);
+    if (tempVital) {
+      const temp = parseFloat(tempVital.Temperature);
       let status = '';
       let color = '';
       let icon = Activity;
@@ -215,7 +228,7 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
 
       results.push({
         category: 'อุณหภูมิร่างกาย (Temp)',
-        date: latestVitals.Date,
+        date: tempVital.Date,
         value: temp.toFixed(1),
         unit: '°C',
         status,
@@ -592,15 +605,15 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
     }
 
     // Metabolic Syndrome Analysis
-    if (latestVitals && latestVitals.Waist && latestVitals.Systolic && latestVitals.Diastolic) {
+    if (waistVital && systolicVital && diastolicVital) {
       const fbs = getLatestLab(['FBS', 'Fasting Blood Sugar', 'Glucose']);
       const tg = getLatestLab(['Triglyceride', 'Triglycerides']);
       const hdl = getLatestLab(['HDL', 'High Density Lipoprotein']);
 
       if (fbs && tg && hdl) {
-        const waistInches = parseFloat(latestVitals.Waist);
-        const sys = parseFloat(latestVitals.Systolic);
-        const dia = parseFloat(latestVitals.Diastolic);
+        const waistInches = parseFloat(waistVital.Waist);
+        const sys = parseFloat(systolicVital.Systolic);
+        const dia = parseFloat(diastolicVital.Diastolic);
         const fbsVal = fbs.parsedValue;
         const tgVal = tg.parsedValue;
         const hdlVal = hdl.parsedValue;
@@ -609,8 +622,8 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
         let isWaistHigh = false;
         const waistLimit = isMale ? 36 : (isFemale ? 32 : 34);
         
-        if (latestVitals.Height) {
-          const heightCm = parseFloat(latestVitals.Height);
+        if (heightVital) {
+          const heightCm = parseFloat(heightVital.Height);
           if (heightCm > 0) {
             const waistCm = waistInches * 2.54;
             isWaistHigh = waistCm >= (heightCm / 2);
@@ -657,7 +670,7 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
 
         results.push({
           category: 'ระบบเผาผลาญ (Metabolic Syndrome)',
-          date: latestVitals.Date,
+          date: waistVital.Date,
           value: `${criteriaMet}/5`,
           unit: 'ข้อ',
           status,
@@ -1222,12 +1235,12 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
     }
 
     // 8. 10-Year CVD Risk Score (Framingham 2008)
-    if (age !== null && age >= 30 && age <= 74 && latestVitals?.Systolic) {
+    if (age !== null && age >= 30 && age <= 74 && systolicVital) {
       const tc = getLatestLab(['Total Cholesterol', 'Cholesterol', 'TC'], ['HDL', 'LDL', 'Ratio']);
       const hdl = getLatestLab(['HDL', 'High Density'], ['Ratio']);
       
       if (tc && hdl) {
-        const systolic = parseFloat(latestVitals.Systolic);
+        const systolic = parseFloat(systolicVital.Systolic);
         const tcVal = tc.parsedValue;
         const hdlVal = hdl.parsedValue;
         
@@ -1275,7 +1288,7 @@ export default function HealthAnalysis({ vitals, labs, profile, healthEvents = [
           
           results.push({
             category: 'ความเสี่ยงโรคหัวใจและหลอดเลือด 10 ปี (10-Year CVD Risk)',
-            date: latestVitals.Date,
+            date: systolicVital.Date,
             value: risk.toFixed(1),
             unit: '%',
             status,
