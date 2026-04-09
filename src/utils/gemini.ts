@@ -101,6 +101,38 @@ export const analyzeImageObject = async (file: File, prompt: string, model: stri
   return JSON.parse(cleanedText);
 };
 
+export const generateText = async (prompt: string, model: string = 'gemini-3.1-flash-preview') => {
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
+  
+  const response = await ai.models.generateContent({
+    model: model,
+    contents: {
+      parts: [
+        {
+          text: prompt
+        }
+      ]
+    },
+    config: {
+      responseMimeType: "application/json",
+    }
+  });
+
+  const text = response.text;
+  if (!text) {
+    throw new Error('No text returned from Gemini');
+  }
+
+  let cleanedText = text.trim();
+  if (cleanedText.startsWith('```json')) {
+    cleanedText = cleanedText.replace(/^```json\n/, '').replace(/\n```$/, '');
+  } else if (cleanedText.startsWith('```')) {
+    cleanedText = cleanedText.replace(/^```\n/, '').replace(/\n```$/, '');
+  }
+
+  return JSON.parse(cleanedText);
+};
+
 export const extractTextFromImage = async (file: File, prompt: string, model: string = 'gemini-3.1-flash-preview') => {
   const base64EncodedDataPromise = new Promise<string>((resolve, reject) => {
     const reader = new FileReader();

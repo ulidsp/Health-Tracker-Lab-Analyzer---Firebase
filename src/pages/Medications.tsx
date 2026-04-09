@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2, ArrowUpDown, User } from 'lucide-react';
+import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2, ArrowUpDown, User, Wand2, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
@@ -15,6 +15,7 @@ export default function Medications() {
   const [meds, setMeds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
   const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
   const [uploadStartDate, setUploadStartDate] = useState(getThaiDateString());
@@ -181,6 +182,56 @@ export default function Medications() {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAutoFillPurposes = async () => {
+    if (!user || !activeProfile || !canEdit) return;
+
+    const medsToUpdate = meds.filter(m => !m.Purpose || m.Purpose.trim() === '');
+    if (medsToUpdate.length === 0) {
+      alert('ไม่มียาที่ต้องเพิ่มสรรพคุณ (ทุกรายการมีสรรพคุณครบแล้ว)');
+      return;
+    }
+
+    setIsAutoFilling(true);
+    setError('');
+
+    try {
+      const { generateText } = await import('../utils/gemini');
+      
+      const medNames = medsToUpdate.map(m => m.MedicationName).join(', ');
+      const prompt = `
+        I have a list of medications: ${medNames}.
+        Please provide the common medical purpose or indication for each of these medications in Thai.
+        Return ONLY a valid JSON object where the keys are the exact medication names provided, and the values are their purposes in Thai.
+        Example: { "Paracetamol": "ลดไข้ บรรเทาปวด", "Amlodipine": "ลดความดันโลหิต" }
+        Do not include markdown formatting like \`\`\`json.
+      `;
+
+      const responseText = await generateText(prompt, selectedModel);
+      
+      const batch = writeBatch(db);
+      let updatedCount = 0;
+
+      for (const med of medsToUpdate) {
+        const purpose = responseText[med.MedicationName];
+        if (purpose) {
+          const medRef = doc(db, 'Medications', med.id);
+          batch.update(medRef, { Purpose: purpose });
+          updatedCount++;
+        }
+      }
+
+      if (updatedCount > 0) {
+        await batch.commit();
+        fetchMeds();
+      }
+    } catch (err: any) {
+      console.error('Error auto-filling purposes:', err);
+      setError('เกิดข้อผิดพลาดในการเพิ่มสรรพคุณยาอัตโนมัติ: ' + err.message);
+    } finally {
+      setIsAutoFilling(false);
     }
   };
 
@@ -730,6 +781,17 @@ export default function Medications() {
               className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors whitespace-nowrap"
             >
               ล้างตัวกรอง
+            </button>
+          )}
+          {canEdit && (
+            <button
+              onClick={handleAutoFillPurposes}
+              disabled={isAutoFilling || meds.filter(m => !m.Purpose || m.Purpose.trim() === '').length === 0}
+              className="flex items-center gap-2 px-4 py-1.5 bg-indigo-50 text-indigo-600 font-medium rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50 whitespace-nowrap text-sm"
+              title="ให้ AI ช่วยเติมสรรพคุณยาที่ยังว่างอยู่"
+            >
+              {isAutoFilling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+              <span>เพิ่มสรรพคุณยาอัตโนมัติ</span>
             </button>
           )}
         </div>
