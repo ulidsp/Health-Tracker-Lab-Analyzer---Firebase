@@ -751,7 +751,8 @@ export default function Medications() {
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4">ชื่อยา / สรรพคุณ</th>
+                <th className="px-6 py-4">ชื่อยา</th>
+                <th className="px-6 py-4">สรรพคุณ</th>
                 <th className="px-6 py-4">วิธีใช้</th>
                 <th className="px-6 py-4 min-w-[220px]">ระยะเวลาที่ใช้</th>
                 <th className="px-6 py-4 min-w-[250px]">หมายเหตุ</th>
@@ -761,11 +762,11 @@ export default function Medications() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
                 </tr>
               ) : activeMeds.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">ไม่พบรายการยาที่ใช้อยู่</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">ไม่พบรายการยาที่ใช้อยู่</td>
                 </tr>
               ) : (
                 activeMeds.map((m: any, i) => (
@@ -774,7 +775,9 @@ export default function Medications() {
                       <div className="font-medium text-slate-900">
                         <Highlight text={m.MedicationName} query={searchQuery} />
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-slate-600">
                         <Highlight text={m.Purpose} query={searchQuery} />
                       </div>
                     </td>
@@ -833,7 +836,8 @@ export default function Medications() {
             <table className="w-full text-left text-sm text-slate-600">
               <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4">ชื่อยา / สรรพคุณ</th>
+                  <th className="px-6 py-4">ชื่อยา</th>
+                  <th className="px-6 py-4">สรรพคุณ</th>
                   <th className="px-6 py-4">วิธีใช้</th>
                   <th className="px-6 py-4 min-w-[220px]">ช่วงเวลาที่ใช้</th>
                   <th className="px-6 py-4 min-w-[250px]">หมายเหตุ</th>
@@ -847,7 +851,9 @@ export default function Medications() {
                       <div className="font-medium text-slate-700">
                         <Highlight text={m.MedicationName} query={searchQuery} />
                       </div>
-                      <div className="text-xs text-slate-400 mt-1">
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-slate-600">
                         <Highlight text={m.Purpose} query={searchQuery} />
                       </div>
                     </td>
