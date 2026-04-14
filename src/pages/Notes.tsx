@@ -355,7 +355,7 @@ export default function Notes() {
                   {formatThaiDate(note.date)}
                 </div>
                 {canEdit && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={(e) => { e.stopPropagation(); startEdit(note); }}
                       className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"

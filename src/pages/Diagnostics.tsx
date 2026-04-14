@@ -517,7 +517,7 @@ export default function Diagnostics() {
                     {canEdit && (
                       <button
                         onClick={() => startEdit(record)}
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                         title="Edit Record"
                       >
                         <Edit2 className="w-5 h-5" />
