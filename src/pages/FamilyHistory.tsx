@@ -15,7 +15,7 @@ export default function FamilyHistory() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   
@@ -285,7 +285,7 @@ export default function FamilyHistory() {
                     <option value="gemini-2.5-pro">(0) Gemini 2.5 Pro (ฉลาดที่ 3)</option>
                     <option value="gemini-pro-latest">(0) Gemini Pro (Latest Stable) (ฉลาดที่ 4)</option>
                     <option value="gemini-3-flash-preview">(20) Gemini 3 Flash Preview (ฉลาดที่ 5)</option>
-                    <option value="gemini-3.1-flash-lite-preview">(500) Gemini 3.1 Flash Lite Preview (ฉลาดที่ 6) (Default)</option>
+                    <option value="gemini-3.1-flash-lite">(500) Gemini 3.1 Flash Lite (ฉลาดที่ 6) (Default)</option>
                     <option value="gemini-flash-latest">(20) Gemini Flash Latest (ฉลาดที่ 7)</option>
                     <option value="gemini-2.5-flash">(20) Gemini 2.5 Flash (ฉลาดที่ 8)</option>
                     <option value="gemini-flash-lite-latest">(500) Gemini Flash Lite Latest (ฉลาดที่ 9)</option>
