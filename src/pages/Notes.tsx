@@ -21,7 +21,7 @@ export default function Notes() {
   const [editingNote, setEditingNote] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const defaultNote = {
@@ -453,20 +453,20 @@ export default function Notes() {
                         onChange={(e) => setSelectedModel(e.target.value)}
                         className="text-xs p-1.5 bg-white border border-indigo-200 rounded-lg text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       >
-                        <option value="gemini-3.1-pro-preview">(0) Gemini 3.1 Pro Preview (ฉลาดที่ 1)</option>
-                        <option value="gemini-3-pro-preview">(0) Gemini 3.0 Pro Preview (ฉลาดที่ 2)</option>
-                        <option value="gemini-2.5-pro">(0) Gemini 2.5 Pro (ฉลาดที่ 3)</option>
-                        <option value="gemini-pro-latest">(0) Gemini Pro (Latest Stable) (ฉลาดที่ 4)</option>
-                        <option value="gemini-3-flash-preview">(20) Gemini 3 Flash Preview (ฉลาดที่ 5)</option>
-                        <option value="gemini-3.1-flash-lite-preview">(500) Gemini 3.1 Flash Lite Preview (ฉลาดที่ 6) (Default)</option>
-                        <option value="gemini-flash-latest">(20) Gemini Flash Latest (ฉลาดที่ 7)</option>
-                        <option value="gemini-2.5-flash">(20) Gemini 2.5 Flash (ฉลาดที่ 8)</option>
-                        <option value="gemini-flash-lite-latest">(500) Gemini Flash Lite Latest (ฉลาดที่ 9)</option>
-                        <option value="gemini-2.5-flash-lite">(20) Gemini 2.5 Flash Lite (ฉลาดที่ 10)</option>
+<option value="gemini-3.5-flash">(20)Gemini 3.5 Flash</option>
+<option value="gemini-3-flash-preview">(20)Gemini 3 Flash Preview</option>
+<option value="gemini-3.1-pro-preview">(0)Gemini 3.1 Pro Preview</option>
+<option value="gemini-3.1-flash-lite">(500)Gemini 3.1 Flash Lite</option>
+<option value="gemini-flash-latest">Gemini Flash Latest</option>
+<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
+<option value="gemini-2.5-flash">(20)Gemini 2.5 Flash</option>
+<option value="gemini-2.5-flash-lite">(20)Gemini 2.5 Flash Lite</option>
+<option value="gemini-2.5-pro">(0)Gemini 2.5 Pro</option>
+<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
                       </select>
                     </div>
                   </div>
-                  
+                 
                   <p className="text-xs text-indigo-700/70 mb-3">
                     อัปโหลดรูปภาพเอกสารหรือบันทึก เพื่อให้ AI ช่วยพิมพ์ข้อความลงในช่องด้านล่างอัตโนมัติ
                   </p>
