@@ -7,6 +7,7 @@ import { useProfile } from '../context/ProfileContext';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Link } from 'react-router-dom';
+import AIModelSelect from '../components/AIModelSelect';
 
 export default function FamilyHistory() {
   const { user } = useAuth();
@@ -15,7 +16,7 @@ export default function FamilyHistory() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
+  const [selectedModel, setSelectedModel] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   
@@ -274,23 +275,12 @@ export default function FamilyHistory() {
                 <h3 className="font-semibold text-slate-900">อัปโหลดรูปประวัติครอบครัว</h3>
                 <p className="text-sm text-slate-500 mt-1 mb-3">ใช้ AI ช่วยอ่านข้อมูลจากรูปถ่ายหรือเอกสาร</p>
                 <div className="flex items-center gap-2">
-                  <select
+                  <AIModelSelect
                     value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    onChange={setSelectedModel}
                     disabled={uploading}
-                  >
-<option value="gemini-3.5-flash">(20)Gemini 3.5 Flash</option>
-<option value="gemini-3-flash-preview">(20)Gemini 3 Flash Preview</option>
-<option value="gemini-3.1-pro-preview">(0)Gemini 3.1 Pro Preview</option>
-<option value="gemini-3.1-flash-lite">(500)Gemini 3.1 Flash Lite</option>
-<option value="gemini-flash-latest">Gemini Flash Latest</option>
-<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">(20)Gemini 2.5 Flash</option>
-<option value="gemini-2.5-flash-lite">(20)Gemini 2.5 Flash Lite</option>
-<option value="gemini-2.5-pro">(0)Gemini 2.5 Pro</option>
-<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
-                  </select>
+                    className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
                   <div className="relative flex-1">
                     <input
                       type="file"

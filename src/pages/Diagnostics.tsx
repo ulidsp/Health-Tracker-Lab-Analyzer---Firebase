@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Plus, Save, X, Upload, Image as ImageIcon, Loader2, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, HeartPulse } from 'lucide-react';
+import { Activity, Plus, Save, X, Upload, Image as ImageIcon, Loader2, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, HeartPulse, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
@@ -8,6 +8,7 @@ import { useProfile } from '../context/ProfileContext';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
+import AIModelSelect from '../components/AIModelSelect';
 
 export default function Diagnostics() {
   const { user } = useAuth();
@@ -21,7 +22,7 @@ export default function Diagnostics() {
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
+  const [selectedModel, setSelectedModel] = useState('');
   const [selectedDiagnosticType, setSelectedDiagnosticType] = useState('EKG');
   const [selectedDate, setSelectedDate] = useState(getThaiDateString());
   const [selectedNotes, setSelectedNotes] = useState('');
@@ -345,23 +346,12 @@ export default function Diagnostics() {
                   </div>
                   <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
-                    <select
+                    <AIModelSelect
                       value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
+                      onChange={setSelectedModel}
                       disabled={analyzing || saving}
                       className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50 max-w-[150px] truncate"
-                    >
-<option value="gemini-3.5-flash">(20)Gemini 3.5 Flash</option>
-<option value="gemini-3-flash-preview">(20)Gemini 3 Flash Preview</option>
-<option value="gemini-3.1-pro-preview">(0)Gemini 3.1 Pro Preview</option>
-<option value="gemini-3.1-flash-lite">(500)Gemini 3.1 Flash Lite</option>
-<option value="gemini-flash-latest">Gemini Flash Latest</option>
-<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">(20)Gemini 2.5 Flash</option>
-<option value="gemini-2.5-flash-lite">(20)Gemini 2.5 Flash Lite</option>
-<option value="gemini-2.5-pro">(0)Gemini 2.5 Pro</option>
-<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
-                    </select>
+                    />
                   </div>
                   <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Date:</label>

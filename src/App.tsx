@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProfileProvider } from './context/ProfileContext';
+import { AIModelProvider } from './context/AIModelContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Vitals from './pages/Vitals';
@@ -28,25 +29,27 @@ export default function App() {
   return (
     <AuthProvider>
       <ProfileProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route index element={<Dashboard />} />
-              <Route path="vitals" element={<Vitals />} />
-              <Route path="lab-results" element={<LabResults />} />
-              <Route path="medications" element={<Medications />} />
-              <Route path="activities" element={<Activities />} />
-              <Route path="family-history" element={<FamilyHistory />} />
-              <Route path="events" element={<HealthEvents />} />
-              <Route path="diagnostics" element={<Diagnostics />} />
-              <Route path="notes" element={<Notes />} />
-              <Route path="chat" element={<Chat />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="profiles" element={<Profiles />} />
-            </Route>
-          </Routes>
-        </Router>
+        <AIModelProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                <Route index element={<Dashboard />} />
+                <Route path="vitals" element={<Vitals />} />
+                <Route path="lab-results" element={<LabResults />} />
+                <Route path="medications" element={<Medications />} />
+                <Route path="activities" element={<Activities />} />
+                <Route path="family-history" element={<FamilyHistory />} />
+                <Route path="events" element={<HealthEvents />} />
+                <Route path="diagnostics" element={<Diagnostics />} />
+                <Route path="notes" element={<Notes />} />
+                <Route path="chat" element={<Chat />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="profiles" element={<Profiles />} />
+              </Route>
+            </Routes>
+          </Router>
+        </AIModelProvider>
       </ProfileProvider>
     </AuthProvider>
   );

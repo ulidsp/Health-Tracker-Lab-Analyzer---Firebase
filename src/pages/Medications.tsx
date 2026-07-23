@@ -8,6 +8,7 @@ import { useProfile } from '../context/ProfileContext';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
 import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
+import AIModelSelect from '../components/AIModelSelect';
 
 export default function Medications() {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ export default function Medications() {
   const [uploading, setUploading] = useState(false);
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
+  const [selectedModel, setSelectedModel] = useState('');
   const [uploadStartDate, setUploadStartDate] = useState(getThaiDateString());
   const [uploadEndDate, setUploadEndDate] = useState('');
   const [saving, setSaving] = useState(false);
@@ -387,23 +388,11 @@ export default function Medications() {
         </div>
         <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
           <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
-          <select
+          <AIModelSelect
             value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
+            onChange={setSelectedModel}
             disabled={uploading || saving}
-            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-          >
-<option value="gemini-3.5-flash">(20)Gemini 3.5 Flash</option>
-<option value="gemini-3-flash-preview">(20)Gemini 3 Flash Preview</option>
-<option value="gemini-3.1-pro-preview">(0)Gemini 3.1 Pro Preview</option>
-<option value="gemini-3.1-flash-lite">(500)Gemini 3.1 Flash Lite</option>
-<option value="gemini-flash-latest">Gemini Flash Latest</option>
-<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">(20)Gemini 2.5 Flash</option>
-<option value="gemini-2.5-flash-lite">(20)Gemini 2.5 Flash Lite</option>
-<option value="gemini-2.5-pro">(0)Gemini 2.5 Pro</option>
-<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
-          </select>
+          />
         </div>
       </header>
 

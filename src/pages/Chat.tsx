@@ -3,6 +3,7 @@ import { Send, Bot, User, Stethoscope, AlertCircle, Loader2, Search, Calendar, F
 import Markdown from 'react-markdown';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
+import AIModelSelect from '../components/AIModelSelect';
 
 import { GoogleGenAI } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
@@ -27,7 +28,7 @@ export default function Chat() {
     }
   ]);
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash');
+  const [selectedModel, setSelectedModel] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [error, setError] = useState('');
@@ -383,23 +384,12 @@ ${JSON.stringify(notes, null, 2)}
           >
             เริ่มแชตใหม่
           </button>
-          <select
+          <AIModelSelect
             value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
+            onChange={setSelectedModel}
             disabled={isLoading}
             className="px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-          >
-<option value="gemini-3.5-flash">(20)Gemini 3.5 Flash</option>
-<option value="gemini-3-flash-preview">(20)Gemini 3 Flash Preview</option>
-<option value="gemini-3.1-pro-preview">(0)Gemini 3.1 Pro Preview</option>
-<option value="gemini-3.1-flash-lite">(500)Gemini 3.1 Flash Lite</option>
-<option value="gemini-flash-latest">Gemini Flash Latest</option>
-<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">(20)Gemini 2.5 Flash</option>
-<option value="gemini-2.5-flash-lite">(20)Gemini 2.5 Flash Lite</option>
-<option value="gemini-2.5-pro">(0)Gemini 2.5 Pro</option>
-<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
-          </select>
+          />
         </div>
       </div>
 

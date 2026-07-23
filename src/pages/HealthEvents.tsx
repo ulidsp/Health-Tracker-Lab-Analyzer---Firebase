@@ -8,6 +8,7 @@ import { useProfile } from '../context/ProfileContext';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { getThaiDateString, formatThaiDate } from '../utils/dateUtils';
+import AIModelSelect from '../components/AIModelSelect';
 
 export default function HealthEvents() {
   const { user } = useAuth();
@@ -21,7 +22,7 @@ export default function HealthEvents() {
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
+  const [selectedModel, setSelectedModel] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const defaultEvent = {
@@ -337,23 +338,12 @@ export default function HealthEvents() {
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <select
+                    <AIModelSelect
                       value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      className="w-full sm:w-auto px-3 py-2 bg-white border border-indigo-200 text-indigo-700 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      onChange={setSelectedModel}
                       disabled={analyzing}
-                    >
-<option value="gemini-3.5-flash">(20)Gemini 3.5 Flash</option>
-<option value="gemini-3-flash-preview">(20)Gemini 3 Flash Preview</option>
-<option value="gemini-3.1-pro-preview">(0)Gemini 3.1 Pro Preview</option>
-<option value="gemini-3.1-flash-lite">(500)Gemini 3.1 Flash Lite</option>
-<option value="gemini-flash-latest">Gemini Flash Latest</option>
-<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">(20)Gemini 2.5 Flash</option>
-<option value="gemini-2.5-flash-lite">(20)Gemini 2.5 Flash Lite</option>
-<option value="gemini-2.5-pro">(0)Gemini 2.5 Pro</option>
-<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
-                    </select>
+                      className="w-full sm:w-auto px-3 py-2 bg-white border border-indigo-200 text-indigo-700 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
                     <div className="relative w-full sm:w-auto">
                       <input
                         type="file"
