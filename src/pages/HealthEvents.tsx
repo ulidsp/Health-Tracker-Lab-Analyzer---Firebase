@@ -339,6 +339,7 @@ export default function HealthEvents() {
                   </div>
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <AIModelSelect
+                      level={2}
                       value={selectedModel}
                       onChange={setSelectedModel}
                       disabled={analyzing}

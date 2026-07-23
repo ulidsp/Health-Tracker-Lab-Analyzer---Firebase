@@ -385,6 +385,7 @@ ${JSON.stringify(notes, null, 2)}
             เริ่มแชตใหม่
           </button>
           <AIModelSelect
+            level={1}
             value={selectedModel}
             onChange={setSelectedModel}
             disabled={isLoading}

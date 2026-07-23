@@ -350,6 +350,7 @@ export default function Activities() {
         <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
           <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
           <AIModelSelect
+            level={2}
             value={selectedModel}
             onChange={setSelectedModel}
             disabled={uploading || saving}

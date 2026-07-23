@@ -312,6 +312,7 @@ export default function LabResults() {
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
                   <AIModelSelect
+                    level={2}
                     value={selectedModel}
                     onChange={setSelectedModel}
                     disabled={uploading || saving}

@@ -276,6 +276,7 @@ export default function FamilyHistory() {
                 <p className="text-sm text-slate-500 mt-1 mb-3">ใช้ AI ช่วยอ่านข้อมูลจากรูปถ่ายหรือเอกสาร</p>
                 <div className="flex items-center gap-2">
                   <AIModelSelect
+                    level={2}
                     value={selectedModel}
                     onChange={setSelectedModel}
                     disabled={uploading}

@@ -450,6 +450,7 @@ export default function Notes() {
                     
                     <div className="flex items-center gap-2">
                       <AIModelSelect
+                        level={2}
                         value={selectedModel}
                         onChange={setSelectedModel}
                         disabled={analyzing}
