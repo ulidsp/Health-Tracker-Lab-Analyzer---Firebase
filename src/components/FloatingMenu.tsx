@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Key, Activity, ChevronUp, Check, Layers, Cpu, ArrowUpToLine, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles, Key, Activity, Check, Layers, Cpu, ArrowUpToLine, ArrowUp, ArrowDown, GripHorizontal, RotateCcw } from 'lucide-react';
 import { useAIModels } from '../context/AIModelContext';
 import { getShortModelDisplay } from '../utils/aiModelResolver';
 import { subscribeToAILogs, hasCustomApiKey, AILogEntry } from '../utils/aiTracker';
@@ -27,6 +27,12 @@ export const FloatingMenu: React.FC<FloatingMenuProps> = ({
   const [lastLog, setLastLog] = useState<AILogEntry | null>(null);
   const [hasCustomKey, setHasCustomKey] = useState(false);
 
+  // Dragging state (in-memory only; resets automatically upon page refresh)
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const stackRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number } | null>(null);
+
   useEffect(() => {
     setHasCustomKey(hasCustomApiKey());
     const unsubscribe = subscribeToAILogs((logs) => {
@@ -37,6 +43,69 @@ export const FloatingMenu: React.FC<FloatingMenuProps> = ({
     });
     return unsubscribe;
   }, []);
+
+  // Ensure position stays within viewport on screen resize
+  useEffect(() => {
+    const handleResize = () => {
+      setPosition((prev) => {
+        if (!prev || !stackRef.current) return prev;
+        const rect = stackRef.current.getBoundingClientRect();
+        return {
+          x: Math.max(8, Math.min(prev.x, window.innerWidth - rect.width - 8)),
+          y: Math.max(8, Math.min(prev.y, window.innerHeight - rect.height - 8)),
+        };
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Pointer drag handlers (supports Desktop Mouse and Mobile/Tablet Touch)
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return; // Only primary button
+    const element = stackRef.current;
+    if (!element) return;
+
+    const rect = element.getBoundingClientRect();
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: rect.left,
+      initialY: rect.top,
+    };
+    setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging || !dragStartRef.current || !stackRef.current) return;
+
+    const dx = e.clientX - dragStartRef.current.startX;
+    const dy = e.clientY - dragStartRef.current.startY;
+
+    const rect = stackRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    const newX = Math.max(8, Math.min(dragStartRef.current.initialX + dx, window.innerWidth - width - 8));
+    const newY = Math.max(8, Math.min(dragStartRef.current.initialY + dy, window.innerHeight - height - 8));
+
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (isDragging) {
+      setIsDragging(false);
+      dragStartRef.current = null;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {}
+    }
+  };
+
+  const handleResetPosition = () => {
+    setPosition(null);
+  };
 
   // Format dynamic short name
   const display = getShortModelDisplay(selectedModel);
@@ -62,13 +131,43 @@ export const FloatingMenu: React.FC<FloatingMenuProps> = ({
     }
   }
 
+  // Detect whether the floating stack is currently on the left half of the screen
+  const isLeftSide = position ? position.x < window.innerWidth / 2 : false;
+
   return (
     <>
-      {/* Unified Vertical Floating Control Stack */}
+      {/* Draggable Vertical Floating Control Stack */}
       <div
-        className="fixed right-3 sm:right-5 md:right-7 z-50 flex flex-col items-center gap-2 transition-all duration-300"
-        style={{ bottom: 'max(1.75rem, env(safe-area-inset-bottom, 1.75rem))' }}
+        ref={stackRef}
+        className={`fixed z-50 flex flex-col items-center gap-2 select-none ${
+          isDragging ? 'cursor-grabbing opacity-90 scale-[1.02]' : ''
+        } ${!position ? 'right-3 sm:right-5 md:right-7' : ''}`}
+        style={
+          position
+            ? {
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                right: 'auto',
+                bottom: 'auto',
+              }
+            : {
+                bottom: 'max(1.75rem, env(safe-area-inset-bottom, 1.75rem))',
+              }
+        }
       >
+        {/* Tactile Drag Handle Pill */}
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onDoubleClick={handleResetPosition}
+          className="w-10 h-4 bg-slate-200/90 hover:bg-indigo-100 text-slate-400 hover:text-indigo-600 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing transition-colors shadow-xs touch-none group"
+          title="แตะหรือคลิกค้างเพื่อลากย้ายตำแหน่ง (ดับเบิลคลิกเพื่อคืนค่าเดิม)"
+        >
+          <GripHorizontal className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100" />
+        </div>
+
         {/* Scroll Shortcut 1: Scroll to Top */}
         {onScrollToTop && (
           <button
@@ -109,7 +208,7 @@ export const FloatingMenu: React.FC<FloatingMenuProps> = ({
         <div className="relative">
           <button
             onClick={() => setIsModelPickerOpen(!isModelPickerOpen)}
-            className="flex flex-col items-center justify-center w-11 sm:w-12 py-1.5 px-1 bg-gradient-to-b from-slate-900 to-indigo-950 text-white rounded-2xl shadow-lg border border-slate-700 hover:scale-105 hover:brightness-110 transition-all cursor-pointer group select-none"
+            className="flex flex-col items-center justify-center w-11 sm:w-12 py-1.5 px-1 bg-gradient-to-b from-slate-900 to-indigo-950 text-white rounded-2xl shadow-lg border border-slate-700 hover:scale-105 hover:brightness-110 transition-all cursor-pointer group"
             title={`Active Gemini Model: ${selectedModel} (Click to switch)`}
           >
             <div className="flex items-center gap-0.5">
@@ -123,9 +222,13 @@ export const FloatingMenu: React.FC<FloatingMenuProps> = ({
             </span>
           </button>
 
-          {/* Quick Model Selector Popover (Opens to the LEFT) */}
+          {/* Quick Model Selector Popover (Opens towards screen center) */}
           {isModelPickerOpen && (
-            <div className="absolute right-full mr-3 bottom-0 w-72 max-w-[85vw] max-h-[65vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 flex flex-col animate-fade-in">
+            <div
+              className={`absolute bottom-0 w-72 max-w-[85vw] max-h-[65vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 flex flex-col animate-fade-in ${
+                isLeftSide ? 'left-full ml-3' : 'right-full mr-3'
+              }`}
+            >
               <div className="p-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <Layers className="w-4 h-4 text-indigo-400" />
@@ -205,6 +308,17 @@ export const FloatingMenu: React.FC<FloatingMenuProps> = ({
             <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-purple-500 ring-2 ring-purple-300" />
           )}
         </button>
+
+        {/* Position Reset Button (Appears only when user has manually moved the menu) */}
+        {position !== null && (
+          <button
+            onClick={handleResetPosition}
+            className="w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full flex items-center justify-center shadow-xs transition-all hover:scale-110"
+            title="คืนค่าตำแหน่งเริ่มต้น"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Modals */}
