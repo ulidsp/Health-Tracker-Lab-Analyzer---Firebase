@@ -7,7 +7,8 @@ import AILogModal from './AILogModal';
 import APIKeyModal from './APIKeyModal';
 
 export const FloatingMenu: React.FC = () => {
-  const { models, selectedModel, setSelectedModel } = useAIModels();
+  const { getModelsByCategory, selectedModel, setSelectedModel } = useAIModels();
+  const textModels = getModelsByCategory('text_reasoning');
   const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
@@ -87,7 +88,7 @@ export const FloatingMenu: React.FC = () => {
               </div>
 
               <div className="max-h-64 overflow-y-auto p-1.5 divide-y divide-slate-100">
-                {models.map((m) => {
+                {textModels.map((m) => {
                   const isSelected = selectedModel === m.modelId;
                   const itemDisplay = getShortModelDisplay(m.name || m.modelId);
 
