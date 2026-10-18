@@ -220,37 +220,13 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Floating Shortcut Buttons */}
-      <div className={clsx(
-        "fixed right-6 md:right-8 flex flex-col gap-3 z-50 transition-all duration-300 bottom-32 md:bottom-36"
-      )}>
-        <button
-          onClick={scrollToTop}
-          className="p-3 bg-white text-slate-700 rounded-full shadow-lg hover:bg-slate-50 border border-slate-200 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
-          title="Scroll to very top (Header)"
-        >
-          <ArrowUpToLine className="w-5 h-5" />
-        </button>
-        <button
-          onClick={scrollToMainContent}
-          className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          title="Scroll to content top"
-        >
-          <ArrowUp className="w-5 h-5" />
-        </button>
-        {location.pathname === '/chat' && (
-          <button
-            onClick={scrollToBottom}
-            className="p-3 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-            title="Scroll to latest message"
-          >
-            <ArrowDown className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Resilient Gemini AI Engine Floating Menu & Controls */}
-      <FloatingMenu />
+      {/* Consolidated Vertical Floating Controls Stack */}
+      <FloatingMenu
+        onScrollToTop={scrollToTop}
+        onScrollToContent={scrollToMainContent}
+        onScrollToBottom={scrollToBottom}
+        showScrollBottom={location.pathname === '/chat'}
+      />
     </div>
   );
 }
