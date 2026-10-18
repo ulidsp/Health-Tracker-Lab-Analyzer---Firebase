@@ -1,47 +1,39 @@
-import { GoogleGenAI } from '@google/genai';
+/**
+ * Gemini Utility Bridge
+ * 
+ * Powered by Dual-Layer Resilient Gemini AI Engine with Smart Cascade Fallback
+ */
+
+import { executeGeminiRequest, fileToBase64 } from './geminiClientService';
 
 export const analyzeImage = async (file: File, prompt: string, model: string = 'gemini-3-flash-preview') => {
-  const base64EncodedDataPromise = new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  const base64Data = await fileToBase64(file);
 
-  const base64Data = await base64EncodedDataPromise;
-
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  
-  const response = await ai.models.generateContent({
-    model: model,
+  const result = await executeGeminiRequest({
+    model,
+    taskType: 'Image Lab / Document OCR',
     contents: {
       parts: [
         {
           inlineData: {
             data: base64Data,
-            mimeType: file.type,
-          }
+            mimeType: file.type || 'image/jpeg',
+          },
         },
         {
-          text: prompt
-        }
-      ]
+          text: prompt,
+        },
+      ],
     },
-    config: {
-      responseMimeType: "application/json",
-    }
+    responseMimeType: 'application/json',
   });
 
-  const text = response.text;
-  if (!text) {
-    throw new Error('No text returned from Gemini');
+  if (result.json) {
+    return result.json;
   }
 
-  // Clean up the text to extract only the JSON array, ignoring markdown or conversational text
-  let cleanedText = text.trim();
+  // Fallback string extraction for JSON array
+  let cleanedText = result.text.trim();
   const arrayMatch = cleanedText.match(/\[[\s\S]*\]/);
   if (arrayMatch) {
     cleanedText = arrayMatch[0];
@@ -51,124 +43,89 @@ export const analyzeImage = async (file: File, prompt: string, model: string = '
 };
 
 export const analyzeImageObject = async (file: File, prompt: string, model: string = 'gemini-3.1-flash-preview') => {
-  const base64EncodedDataPromise = new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  const base64Data = await fileToBase64(file);
 
-  const base64Data = await base64EncodedDataPromise;
-
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
-  
-  const response = await ai.models.generateContent({
-    model: model,
+  const result = await executeGeminiRequest({
+    model,
+    taskType: 'Diagnostic Object OCR',
     contents: {
       parts: [
         {
           inlineData: {
             data: base64Data,
-            mimeType: file.type,
-          }
+            mimeType: file.type || 'image/jpeg',
+          },
         },
         {
-          text: prompt
-        }
-      ]
+          text: prompt,
+        },
+      ],
     },
-    config: {
-      responseMimeType: "application/json",
-    }
+    responseMimeType: 'application/json',
   });
 
-  const text = response.text;
-  if (!text) {
-    throw new Error('No text returned from Gemini');
+  if (result.json) {
+    return result.json;
   }
 
-  let cleanedText = text.trim();
-  // Remove markdown code blocks if present
+  let cleanedText = result.text.trim();
   if (cleanedText.startsWith('```json')) {
-    cleanedText = cleanedText.replace(/^```json\n/, '').replace(/\n```$/, '');
+    cleanedText = cleanedText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
   } else if (cleanedText.startsWith('```')) {
-    cleanedText = cleanedText.replace(/^```\n/, '').replace(/\n```$/, '');
+    cleanedText = cleanedText.replace(/^```\n?/, '').replace(/\n?```$/, '');
   }
 
   return JSON.parse(cleanedText);
 };
 
 export const generateText = async (prompt: string, model: string = 'gemini-3.1-flash-preview') => {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
-  
-  const response = await ai.models.generateContent({
-    model: model,
+  const result = await executeGeminiRequest({
+    model,
+    taskType: 'Text Generation / Analysis',
     contents: {
       parts: [
         {
-          text: prompt
-        }
-      ]
+          text: prompt,
+        },
+      ],
     },
-    config: {
-      responseMimeType: "application/json",
-    }
+    responseMimeType: 'application/json',
   });
 
-  const text = response.text;
-  if (!text) {
-    throw new Error('No text returned from Gemini');
+  if (result.json) {
+    return result.json;
   }
 
-  let cleanedText = text.trim();
+  let cleanedText = result.text.trim();
   if (cleanedText.startsWith('```json')) {
-    cleanedText = cleanedText.replace(/^```json\n/, '').replace(/\n```$/, '');
+    cleanedText = cleanedText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
   } else if (cleanedText.startsWith('```')) {
-    cleanedText = cleanedText.replace(/^```\n/, '').replace(/\n```$/, '');
+    cleanedText = cleanedText.replace(/^```\n?/, '').replace(/\n?```$/, '');
   }
 
   return JSON.parse(cleanedText);
 };
 
 export const extractTextFromImage = async (file: File, prompt: string, model: string = 'gemini-3.1-flash-preview') => {
-  const base64EncodedDataPromise = new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  const base64Data = await fileToBase64(file);
 
-  const base64Data = await base64EncodedDataPromise;
-
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  
-  const response = await ai.models.generateContent({
-    model: model,
+  const result = await executeGeminiRequest({
+    model,
+    taskType: 'Note / Document Text Extraction',
     contents: {
       parts: [
         {
           inlineData: {
             data: base64Data,
-            mimeType: file.type,
-          }
+            mimeType: file.type || 'image/jpeg',
+          },
         },
         {
-          text: prompt
-        }
-      ]
-    }
+          text: prompt,
+        },
+      ],
+    },
   });
 
-  const text = response.text;
-  if (!text) {
-    throw new Error('No text returned from Gemini');
-  }
-
-  return text;
+  return result.text;
 };

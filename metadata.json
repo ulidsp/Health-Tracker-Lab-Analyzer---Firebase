@@ -1,5 +1,8 @@
 {
   "name": "Health Tracker \u0026 Lab Analyzer - Firebase",
   "description": "Personal health tracking app with Google Sheets integration and AI-powered lab result analysis.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

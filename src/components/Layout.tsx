@@ -6,6 +6,7 @@ import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut,
 import clsx from 'clsx';
 import { db } from '../firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import FloatingMenu from './FloatingMenu';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -247,6 +248,9 @@ export default function Layout() {
           </button>
         )}
       </div>
+
+      {/* Resilient Gemini AI Engine Floating Menu & Controls */}
+      <FloatingMenu />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 import AIModelSelect from '../components/AIModelSelect';
 
-import { GoogleGenAI } from '@google/genai';
+import { executeGeminiRequest } from '../utils/geminiClientService';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
 import { collection, getDocs, addDoc, query, orderBy, where } from 'firebase/firestore';
@@ -290,16 +290,14 @@ ${JSON.stringify(notes, null, 2)}
         8. **คำเตือนสำคัญ:** ต้องระบุเสมอว่าคุณเป็นเพียง AI ผู้ช่วยทางการแพทย์ และผู้ป่วยควรปรึกษาแพทย์เจ้าของไข้เพื่อการวินิจฉัยและการรักษาที่ถูกต้อง
       `;
 
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
+      const aiResult = await executeGeminiRequest({
         model: selectedModel,
+        taskType: 'AI Medical Assistant Chat',
         contents: alternatingMessages,
-        config: {
-          systemInstruction: systemInstruction,
-        }
+        systemInstruction: systemInstruction,
       });
 
-      const modelText = response.text || '';
+      const modelText = aiResult.text || '';
 
       // Log the chat to Firestore with profileId
       let timestamp = new Date().toISOString();
