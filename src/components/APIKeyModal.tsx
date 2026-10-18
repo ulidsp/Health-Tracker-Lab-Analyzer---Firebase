@@ -114,20 +114,33 @@ export const APIKeyModal: React.FC<APIKeyModalProps> = ({ isOpen, onClose }) => 
 
         {/* Content */}
         <div className="p-6 space-y-4 text-slate-700 text-sm">
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-indigo-600" />
-              <span className="text-xs font-semibold text-slate-800">Current Key Mode:</span>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                <span className="text-xs font-semibold text-slate-800">Active Priority:</span>
+              </div>
+              <span
+                className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                  currentKeyActive
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                }`}
+              >
+                {currentKeyActive ? 'Priority 1: Local Storage' : 'Priority 2: Vercel Server Key'}
+              </span>
             </div>
-            <span
-              className={`text-xs px-2.5 py-1 rounded-full font-bold ${
-                currentKeyActive
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                  : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
-              }`}
-            >
-              {currentKeyActive ? 'Custom User Key' : 'System Environment Key'}
-            </span>
+
+            <div className="text-[11px] text-slate-500 space-y-1 pt-1 border-t border-slate-200/60">
+              <div className="flex items-center gap-1.5 text-slate-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span><strong>Priority 1:</strong> Browser Local Storage Key (ใช้ก่อนถ้ามี)</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                <span><strong>Priority 2:</strong> Vercel Server Key (สำรองอัตโนมัติเมื่อโควต้าเต็ม, คีย์ผิด หรือไม่ได้ใส่)</span>
+              </div>
+            </div>
           </div>
 
           <div>

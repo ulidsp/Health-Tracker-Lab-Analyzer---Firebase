@@ -2,11 +2,13 @@
  * Dual-Layer Resilient Gemini Client Service
  * 
  * Orchestrates:
- * 1. Environment auto-detection (Server Proxy vs Direct Client SDK)
- * 2. Multi-source API key resolution (Custom Key, Server Env, Vite Env)
- * 3. Future-proof model pass-through with deprecation guard
- * 4. Smart cascade fallback loop ensuring 100% request completion
- * 5. Execution tracking and real-time audit logging
+ * 1. Two-Tier Key Priority Resolution:
+ *    - Priority 1: Browser Local Storage Key (Custom Key)
+ *    - Priority 2: Vercel Server / AI Studio Environment Key (GEMINI_API_KEY)
+ *    If Priority 1 fails (Quota 429, Invalid Key 400/401/403, or empty), auto-fails over to Priority 2.
+ * 2. Smart cascade fallback loop across model families ensuring 100% request completion
+ * 3. Environment detection routing to Serverless Proxy or Direct Client SDK
+ * 4. Transparent execution tracking and audit logging
  */
 
 import { GoogleGenAI } from '@google/genai';
@@ -33,58 +35,238 @@ export interface GeminiExecutionResult {
   attemptedModels: string[];
   latencyMs: number;
   keySource: 'Server Env' | 'User Custom Key' | 'Vite Client Env';
+  keyFailoverOccurred?: boolean;
+  keyFailoverReason?: string;
 }
 
 /**
- * Universal execution method routing to either Server Proxy or Direct Client SDK
+ * Universal execution method implementing Two-Tier API Key Priority:
+ * Priority 1: Browser Local Storage Key
+ * Priority 2: Vercel Server / Environment Key
  */
 export async function executeGeminiRequest(options: GeminiRequestOptions): Promise<GeminiExecutionResult> {
-  const useDirect = shouldUseDirectClientCalls();
+  const customKey = getCustomApiKey();
+  const startTime = Date.now();
 
-  if (useDirect) {
-    return executeDirectClientRequest(options);
-  } else {
-    return executeServerProxyRequest(options);
+  // If user entered a key in Local Storage, attempt Priority 1 first
+  if (customKey && customKey.trim()) {
+    try {
+      console.log('[AI Key Priority] Attempting Priority 1: Browser Local Storage Key...');
+      const result = await invokeWithKey(options, customKey.trim(), 'User Custom Key');
+      return result;
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      console.warn(`[AI Key Priority] Priority 1 (Local Storage Key) failed: ${errMsg}. Auto-failing over to Priority 2 (Vercel Server Key)...`);
+
+      // Priority 1 failed (quota exceeded, bad key, or API issue)
+      // Automatically fall over to Priority 2: Server API Key!
+      try {
+        const fallbackResult = await invokeWithServerKey(options);
+        const latencyMs = Date.now() - startTime;
+
+        const enhancedResult: GeminiExecutionResult = {
+          ...fallbackResult,
+          keyFailoverOccurred: true,
+          keyFailoverReason: `Priority 1 (Local Storage Key) failed: ${errMsg} -> Fell back to Vercel Server Key`,
+          latencyMs,
+        };
+
+        recordAILog({
+          taskType: options.taskType || 'AI Request',
+          requestedModel: fallbackResult.requestedModel,
+          actualModel: fallbackResult.actualModel,
+          fallbackOccurred: fallbackResult.fallbackOccurred,
+          attemptedModels: fallbackResult.attemptedModels,
+          latencyMs,
+          keySource: fallbackResult.keySource,
+          keyFailoverOccurred: true,
+          keyFailoverReason: enhancedResult.keyFailoverReason,
+          status: 'fallback_success',
+        });
+
+        return enhancedResult;
+      } catch (serverErr: any) {
+        const finalErrorMsg = `Both Priority 1 (Local Storage) and Priority 2 (Server Key) failed. LocalStorage error: ${errMsg} | Server error: ${serverErr?.message || serverErr}`;
+        recordAILog({
+          taskType: options.taskType || 'AI Request',
+          requestedModel: options.model || 'unknown',
+          actualModel: 'none',
+          fallbackOccurred: true,
+          attemptedModels: [],
+          latencyMs: Date.now() - startTime,
+          keySource: 'Server Env',
+          keyFailoverOccurred: true,
+          keyFailoverReason: `LocalStorage failed (${errMsg}) and Server failed (${serverErr?.message || serverErr})`,
+          status: 'error',
+          errorMessage: finalErrorMsg,
+        });
+        throw new Error(finalErrorMsg);
+      }
+    }
   }
+
+  // If no Local Storage key was provided, go directly to Priority 2: Server Key
+  console.log('[AI Key Priority] No Local Storage key set. Directly using Priority 2: Vercel Server Key...');
+  return invokeWithServerKey(options);
 }
 
 /**
- * Direct Client SDK execution path (used on Vercel / external hosts)
+ * Invoke using a specific key (Priority 1: Local Storage Key)
  */
-async function executeDirectClientRequest(options: GeminiRequestOptions): Promise<GeminiExecutionResult> {
+async function invokeWithKey(
+  options: GeminiRequestOptions,
+  apiKey: string,
+  keySource: 'User Custom Key'
+): Promise<GeminiExecutionResult> {
   const startTime = Date.now();
-  const customKey = getCustomApiKey();
-  const clientEnvKey = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? (process.env?.GEMINI_API_KEY || process.env?.VITE_GEMINI_API_KEY) : '');
+  const useDirect = shouldUseDirectClientCalls();
 
-  let effectiveKey = '';
-  let keySource: 'User Custom Key' | 'Vite Client Env' = 'Vite Client Env';
-
-  if (customKey) {
-    effectiveKey = customKey;
-    keySource = 'User Custom Key';
-  } else if (clientEnvKey) {
-    effectiveKey = clientEnvKey;
-    keySource = 'Vite Client Env';
+  // If in direct client mode (e.g. Vercel client bundle)
+  if (useDirect) {
+    return runDirectClientLoop(options, apiKey, keySource, startTime);
   }
 
-  if (!effectiveKey) {
-    const errorMsg = 'No Gemini API Key found. Please add your key in the AI Key Settings modal or set VITE_GEMINI_API_KEY.';
-    recordAILog({
-      taskType: options.taskType || 'Direct Client AI',
-      requestedModel: options.model || 'unknown',
-      actualModel: 'none',
-      fallbackOccurred: false,
-      attemptedModels: [],
-      latencyMs: 0,
-      keySource,
-      status: 'error',
-      errorMessage: errorMsg,
+  // If in server proxy mode (AI Studio / Cloud Run)
+  const res = await fetch(getAiProxyEndpoint('/api/ai/generate'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-gemini-api-key': apiKey,
+    },
+    body: JSON.stringify({
+      model: resolveModelName(options.model),
+      contents: options.contents,
+      systemInstruction: options.systemInstruction,
+      responseMimeType: options.responseMimeType,
+      responseSchema: options.responseSchema,
+      taskType: options.taskType || 'Priority 1 AI Request',
+    }),
+  });
+
+  const latencyMs = Date.now() - startTime;
+
+  if (!res.ok) {
+    let errData: any = null;
+    try {
+      errData = await res.json();
+    } catch {}
+    const errMsg = errData?.error || `Server responded with status ${res.status}`;
+    throw new Error(errMsg);
+  }
+
+  const data = await res.json();
+  const fallbackOccurred = Boolean(data.fallbackOccurred);
+
+  recordAILog({
+    taskType: options.taskType || 'AI Request',
+    requestedModel: data.requestedModel || resolveModelName(options.model),
+    actualModel: data.actualModel || resolveModelName(options.model),
+    fallbackOccurred,
+    attemptedModels: data.attemptedModels || [],
+    latencyMs: data.latencyMs || latencyMs,
+    keySource: data.keySource || keySource,
+    keyFailoverOccurred: Boolean(data.keyFailoverOccurred),
+    keyFailoverReason: data.keyFailoverReason,
+    status: fallbackOccurred ? 'fallback_success' : 'success',
+  });
+
+  return {
+    text: data.text || '',
+    json: data.json,
+    actualModel: data.actualModel || resolveModelName(options.model),
+    requestedModel: data.requestedModel || resolveModelName(options.model),
+    fallbackOccurred,
+    attemptedModels: data.attemptedModels || [],
+    latencyMs: data.latencyMs || latencyMs,
+    keySource: data.keySource || keySource,
+    keyFailoverOccurred: data.keyFailoverOccurred,
+    keyFailoverReason: data.keyFailoverReason,
+  };
+}
+
+/**
+ * Invoke using Priority 2: Vercel Server / Environment Key
+ */
+async function invokeWithServerKey(options: GeminiRequestOptions): Promise<GeminiExecutionResult> {
+  const startTime = Date.now();
+  const requestedModel = resolveModelName(options.model);
+
+  // First try the server endpoint (/api/ai/generate) without x-gemini-api-key header
+  // so the server (server.ts or Vercel serverless function) uses process.env.GEMINI_API_KEY
+  try {
+    const res = await fetch(getAiProxyEndpoint('/api/ai/generate'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: requestedModel,
+        contents: options.contents,
+        systemInstruction: options.systemInstruction,
+        responseMimeType: options.responseMimeType,
+        responseSchema: options.responseSchema,
+        taskType: options.taskType || 'Vercel Server AI',
+      }),
     });
-    throw new Error(errorMsg);
+
+    const latencyMs = Date.now() - startTime;
+
+    if (res.ok) {
+      const data = await res.json();
+      const fallbackOccurred = Boolean(data.fallbackOccurred);
+
+      recordAILog({
+        taskType: options.taskType || 'Vercel Server AI',
+        requestedModel: data.requestedModel || requestedModel,
+        actualModel: data.actualModel || requestedModel,
+        fallbackOccurred,
+        attemptedModels: data.attemptedModels || [requestedModel],
+        latencyMs: data.latencyMs || latencyMs,
+        keySource: 'Server Env',
+        status: fallbackOccurred ? 'fallback_success' : 'success',
+      });
+
+      return {
+        text: data.text || '',
+        json: data.json,
+        actualModel: data.actualModel || requestedModel,
+        requestedModel: data.requestedModel || requestedModel,
+        fallbackOccurred,
+        attemptedModels: data.attemptedModels || [requestedModel],
+        latencyMs: data.latencyMs || latencyMs,
+        keySource: 'Server Env',
+      };
+    }
+  } catch (proxyErr) {
+    console.warn('[AI Client] Server endpoint call error, checking client env key...', proxyErr);
   }
 
+  // If server endpoint was not reachable (e.g. pure static build without serverless routing),
+  // fallback to Vite client env key VITE_GEMINI_API_KEY if configured in Vercel build
+  const clientEnvKey =
+    import.meta.env.VITE_GEMINI_API_KEY ||
+    (typeof process !== 'undefined' ? (process.env?.GEMINI_API_KEY || process.env?.VITE_GEMINI_API_KEY) : '');
+
+  if (clientEnvKey && clientEnvKey.trim()) {
+    return runDirectClientLoop(options, clientEnvKey.trim(), 'Vite Client Env', startTime);
+  }
+
+  throw new Error(
+    'No Gemini API Key available. Please configure GEMINI_API_KEY in Vercel Environment Variables or provide a key in the settings modal.'
+  );
+}
+
+/**
+ * Direct SDK loop with Smart Cascade Fallback
+ */
+async function runDirectClientLoop(
+  options: GeminiRequestOptions,
+  apiKey: string,
+  keySource: 'User Custom Key' | 'Vite Client Env',
+  startTime: number
+): Promise<GeminiExecutionResult> {
   const ai = new GoogleGenAI({
-    apiKey: effectiveKey,
+    apiKey,
     httpOptions: {
       headers: {
         'User-Agent': 'aistudio-build',
@@ -118,8 +300,21 @@ async function executeDirectClientRequest(options: GeminiRequestOptions): Promis
       break;
     } catch (err: any) {
       const msg = err?.message || String(err);
-      console.warn(`[Client Cascade] Model ${currentModel} failed: ${msg}. Trying next fallback...`);
       errors.push(`${currentModel}: ${msg}`);
+
+      // If key is invalid or quota exhausted, stop model cascade on this key immediately
+      // so caller can failover to Server Key without delay!
+      const isKeyOrQuota =
+        msg.includes('API_KEY_INVALID') ||
+        msg.includes('403') ||
+        msg.includes('401') ||
+        msg.includes('quota') ||
+        msg.includes('429');
+
+      if (isKeyOrQuota) {
+        console.warn(`[Direct Client Key Error] Key error on ${keySource}: ${msg}`);
+        throw new Error(msg);
+      }
     }
   }
 
@@ -127,17 +322,6 @@ async function executeDirectClientRequest(options: GeminiRequestOptions): Promis
 
   if (!successfulResponse) {
     const errorMsg = `All models in fallback cascade failed: ${errors.join(' | ')}`;
-    recordAILog({
-      taskType: options.taskType || 'Direct Client AI',
-      requestedModel,
-      actualModel: 'none',
-      fallbackOccurred: true,
-      attemptedModels,
-      latencyMs,
-      keySource,
-      status: 'error',
-      errorMessage: errorMsg,
-    });
     throw new Error(errorMsg);
   }
 
@@ -153,9 +337,7 @@ async function executeDirectClientRequest(options: GeminiRequestOptions): Promis
         cleanText = cleanText.replace(/^```\n?/, '').replace(/\n?```$/, '');
       }
       json = JSON.parse(cleanText);
-    } catch {
-      // Leave null if non-JSON
-    }
+    } catch {}
   }
 
   const fallbackOccurred = actualModelUsed !== requestedModel;
@@ -181,111 +363,6 @@ async function executeDirectClientRequest(options: GeminiRequestOptions): Promis
     latencyMs,
     keySource,
   };
-}
-
-/**
- * Server-Side Proxy execution path (used in AI Studio Preview / Cloud Run)
- */
-async function executeServerProxyRequest(options: GeminiRequestOptions): Promise<GeminiExecutionResult> {
-  const startTime = Date.now();
-  const customKey = getCustomApiKey();
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  if (customKey) {
-    headers['x-gemini-api-key'] = customKey;
-  }
-
-  const requestedModel = resolveModelName(options.model);
-
-  try {
-    const res = await fetch(getAiProxyEndpoint('/api/ai/generate'), {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: requestedModel,
-        contents: options.contents,
-        systemInstruction: options.systemInstruction,
-        responseMimeType: options.responseMimeType,
-        responseSchema: options.responseSchema,
-        taskType: options.taskType || 'Server Proxy AI',
-      }),
-    });
-
-    const latencyMs = Date.now() - startTime;
-
-    if (!res.ok) {
-      let errData: any = null;
-      try {
-        errData = await res.json();
-      } catch {
-        // Ignore json parse error
-      }
-      const errMsg = errData?.error || `Server proxy responded with status ${res.status}`;
-
-      recordAILog({
-        taskType: options.taskType || 'Server Proxy AI',
-        requestedModel,
-        actualModel: 'none',
-        fallbackOccurred: false,
-        attemptedModels: errData?.attemptedModels || [requestedModel],
-        latencyMs,
-        keySource: customKey ? 'User Custom Key' : 'Server Env',
-        status: 'error',
-        errorMessage: errMsg,
-      });
-
-      throw new Error(errMsg);
-    }
-
-    const data = await res.json();
-    const fallbackOccurred = Boolean(data.fallbackOccurred);
-
-    recordAILog({
-      taskType: options.taskType || 'Server Proxy AI',
-      requestedModel: data.requestedModel || requestedModel,
-      actualModel: data.actualModel || requestedModel,
-      fallbackOccurred,
-      attemptedModels: data.attemptedModels || [requestedModel],
-      latencyMs: data.latencyMs || latencyMs,
-      keySource: data.keySource || (customKey ? 'User Custom Key' : 'Server Env'),
-      status: fallbackOccurred ? 'fallback_success' : 'success',
-    });
-
-    return {
-      text: data.text || '',
-      json: data.json,
-      actualModel: data.actualModel || requestedModel,
-      requestedModel: data.requestedModel || requestedModel,
-      fallbackOccurred,
-      attemptedModels: data.attemptedModels || [requestedModel],
-      latencyMs: data.latencyMs || latencyMs,
-      keySource: data.keySource || (customKey ? 'User Custom Key' : 'Server Env'),
-    };
-  } catch (error: any) {
-    const latencyMs = Date.now() - startTime;
-    // If server proxy call failed completely (e.g. network error), try direct client fallback if client key exists
-    if (customKey || import.meta.env.VITE_GEMINI_API_KEY) {
-      console.warn('[AI Engine] Server proxy network failure. Attempting direct client SDK fallback...', error);
-      return executeDirectClientRequest(options);
-    }
-
-    recordAILog({
-      taskType: options.taskType || 'Server Proxy AI',
-      requestedModel,
-      actualModel: 'none',
-      fallbackOccurred: false,
-      attemptedModels: [requestedModel],
-      latencyMs,
-      keySource: customKey ? 'User Custom Key' : 'Server Env',
-      status: 'error',
-      errorMessage: error?.message || 'Network request failed',
-    });
-
-    throw error;
-  }
 }
 
 /**

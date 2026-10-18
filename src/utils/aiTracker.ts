@@ -18,6 +18,8 @@ export interface AILogEntry {
   attemptedModels: string[];
   latencyMs: number;
   keySource: 'Server Env' | 'User Custom Key' | 'Vite Client Env';
+  keyFailoverOccurred?: boolean;
+  keyFailoverReason?: string;
   status: 'success' | 'fallback_success' | 'error';
   errorMessage?: string;
   promptPreview?: string;

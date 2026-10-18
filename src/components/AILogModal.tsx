@@ -217,6 +217,16 @@ export const AILogModal: React.FC<AILogModalProps> = ({ isOpen, onClose }) => {
                     )}
                   </div>
 
+                  {/* Key Failover Notice */}
+                  {log.keyFailoverOccurred && (
+                    <div className="mt-2 p-2 bg-purple-50 rounded-lg text-purple-900 text-[11px] font-medium flex items-center justify-between border border-purple-200">
+                      <span className="flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                        <span><strong>Key Priority Fallback:</strong> Local Storage Key unavailable/quota exhausted &rarr; Switched to Vercel Server Key</span>
+                      </span>
+                    </div>
+                  )}
+
                   {/* Error Message */}
                   {log.errorMessage && (
                     <div className="mt-2 p-2 bg-rose-50 rounded-lg text-rose-800 text-[11px] font-mono break-all border border-rose-100">

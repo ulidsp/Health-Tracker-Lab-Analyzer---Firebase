@@ -126,79 +126,118 @@ async function startServer() {
       taskType = 'General AI Request'
     } = req.body;
 
-    // Multi-source key resolution
-    const clientProvidedKey = req.headers['x-gemini-api-key'] as string | undefined;
-    const serverKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    // Multi-source key resolution with Priority:
+    // Priority 1: Client-Provided Key (Local Storage via header 'x-gemini-api-key')
+    // Priority 2: Server Environment Key (GEMINI_API_KEY from server / Vercel)
+    const clientProvidedKey = (req.headers['x-gemini-api-key'] as string | undefined)?.trim();
+    const serverKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY)?.trim();
 
-    let effectiveKey = '';
-    let keySource: 'User Custom Key' | 'Server Env' = 'Server Env';
-
-    if (clientProvidedKey && clientProvidedKey.trim()) {
-      effectiveKey = clientProvidedKey.trim();
-      keySource = 'User Custom Key';
-    } else if (serverKey) {
-      effectiveKey = serverKey.trim();
-      keySource = 'Server Env';
+    const keysToTry: Array<{ key: string; source: 'User Custom Key' | 'Server Env' }> = [];
+    if (clientProvidedKey) {
+      keysToTry.push({ key: clientProvidedKey, source: 'User Custom Key' });
+    }
+    if (serverKey && serverKey !== clientProvidedKey) {
+      keysToTry.push({ key: serverKey, source: 'Server Env' });
     }
 
-    if (!effectiveKey) {
+    if (keysToTry.length === 0) {
       return res.status(500).json({
         error: 'No Gemini API Key available. Please configure GEMINI_API_KEY on server or provide a custom key.'
       });
     }
 
-    const ai = new GoogleGenAI({
-      apiKey: effectiveKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build'
-        }
-      }
-    });
-
     const requestedModel = serverResolveModel(model);
     const modelsToTry = serverBuildFallbackList(requestedModel);
     const attemptedModels: string[] = [];
-    const errors: Array<{ model: string; error: string }> = [];
+    const errors: Array<{ model: string; error: string; keySource: string }> = [];
 
     let successfulResponse: any = null;
     let actualModelUsed = '';
+    let finalKeySource: 'User Custom Key' | 'Server Env' = keysToTry[0].source;
+    let keyFailoverOccurred = false;
+    let keyFailoverReason: string | undefined = undefined;
 
-    for (const currentModel of modelsToTry) {
-      attemptedModels.push(currentModel);
-      try {
-        const config: Record<string, any> = {};
-        if (systemInstruction) config.systemInstruction = systemInstruction;
-        if (responseMimeType) config.responseMimeType = responseMimeType;
-        if (responseSchema) config.responseSchema = responseSchema;
+    for (let keyIdx = 0; keyIdx < keysToTry.length; keyIdx++) {
+      const currentKeyObj = keysToTry[keyIdx];
+      const ai = new GoogleGenAI({
+        apiKey: currentKeyObj.key,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build'
+          }
+        }
+      });
 
-        const response = await ai.models.generateContent({
-          model: currentModel,
-          contents: contents,
-          config: Object.keys(config).length > 0 ? config : undefined
-        });
+      let keySucceeded = false;
 
-        successfulResponse = response;
-        actualModelUsed = currentModel;
-        break; // Successfully got response, stop trying fallbacks
-      } catch (err: any) {
-        const errMsg = err?.message || String(err);
-        console.warn(`[AI Engine Cascade] Model ${currentModel} failed: ${errMsg}. Trying fallback...`);
-        errors.push({ model: currentModel, error: errMsg });
+      for (const currentModel of modelsToTry) {
+        attemptedModels.push(currentModel);
+        try {
+          const config: Record<string, any> = {};
+          if (systemInstruction) config.systemInstruction = systemInstruction;
+          if (responseMimeType) config.responseMimeType = responseMimeType;
+          if (responseSchema) config.responseSchema = responseSchema;
+
+          const response = await ai.models.generateContent({
+            model: currentModel,
+            contents: contents,
+            config: Object.keys(config).length > 0 ? config : undefined
+          });
+
+          successfulResponse = response;
+          actualModelUsed = currentModel;
+          finalKeySource = currentKeyObj.source;
+          keySucceeded = true;
+          break; // Model success
+        } catch (err: any) {
+          const errMsg = err?.message || String(err);
+          errors.push({ model: currentModel, error: errMsg, keySource: currentKeyObj.source });
+
+          // If error is an API Key or Quota failure, break immediately and fail over to server key!
+          const isKeyOrQuotaError =
+            errMsg.includes('API_KEY_INVALID') ||
+            errMsg.includes('403') ||
+            errMsg.includes('401') ||
+            errMsg.includes('API key not valid') ||
+            errMsg.includes('Resource has been exhausted') ||
+            errMsg.includes('quota') ||
+            errMsg.includes('429');
+
+          if (isKeyOrQuotaError && keyIdx < keysToTry.length - 1) {
+            console.warn(`[AI Key Cascade] Key from ${currentKeyObj.source} encountered key/quota error (${errMsg}). Auto-failing over to Server API Key...`);
+            keyFailoverOccurred = true;
+            keyFailoverReason = `Priority 1 (${currentKeyObj.source}) failed: ${errMsg}`;
+            break; // Break model loop to advance to next key
+          } else {
+            console.warn(`[AI Engine Cascade] Model ${currentModel} failed: ${errMsg}. Trying fallback...`);
+          }
+        }
+      }
+
+      if (keySucceeded) {
+        break; // Stop trying keys
+      }
+
+      if (!keySucceeded && keyIdx < keysToTry.length - 1) {
+        keyFailoverOccurred = true;
+        keyFailoverReason = `All models failed on ${currentKeyObj.source}`;
+        console.warn(`[AI Key Cascade] All models failed on ${currentKeyObj.source}. Auto-failing over to Server API Key...`);
       }
     }
 
     const latencyMs = Date.now() - startTime;
 
     if (!successfulResponse) {
-      console.error('[AI Engine Cascade] All models in cascade failed:', errors);
+      console.error('[AI Engine Cascade] All models and keys in cascade failed:', errors);
       return res.status(502).json({
-        error: 'All AI models in fallback cascade failed.',
+        error: 'All AI models and API keys in fallback cascade failed.',
         requestedModel,
         attemptedModels,
         errors,
         latencyMs,
-        keySource
+        keySource: finalKeySource,
+        keyFailoverOccurred,
+        keyFailoverReason
       });
     }
 
@@ -227,7 +266,9 @@ async function startServer() {
       fallbackOccurred: actualModelUsed !== requestedModel,
       attemptedModels,
       latencyMs,
-      keySource,
+      keySource: finalKeySource,
+      keyFailoverOccurred,
+      keyFailoverReason,
       taskType
     });
   });
